@@ -91,43 +91,27 @@ export class LoginComponent {
       return;
     }
 
-    if (user.toLowerCase() === 'narendra') {
-      this.errorMessage = 'Username already registered as developer account.';
-      this.cdr.detectChanges();
-      return;
-    }
+    this.apiService.register(user, pass, email).subscribe({
+      next: (response) => {
+        this.successMessage = 'Registration successful! You can now log in.';
+        this.username = user; // Pre-fill login username
+        this.password = '';
+        
+        // Clear fields
+        this.signUpUsername = '';
+        this.signUpEmail = '';
+        this.signUpPass = '';
+        this.signUpConfirmPass = '';
 
-    let users: Array<any> = [];
-    const usersRaw = localStorage.getItem('capstone_registered_users');
-    if (usersRaw) {
-      try {
-        users = JSON.parse(usersRaw);
-      } catch (e) {
-        users = [];
+        // Switch to login tab
+        this.isSignUpActive = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error('❌ Registration failed:', err);
+        this.errorMessage = err.error?.detail || 'Registration failed. Please try again.';
+        this.cdr.detectChanges();
       }
-    }
-
-    if (users.some(u => u.username.toLowerCase() === user.toLowerCase())) {
-      this.errorMessage = 'Username already exists. Please choose a different name.';
-      this.cdr.detectChanges();
-      return;
-    }
-
-    users.push({ username: user, email, password: pass });
-    localStorage.setItem('capstone_registered_users', JSON.stringify(users));
-
-    this.successMessage = 'Registration successful! You can now log in.';
-    this.username = user; // Pre-fill login username
-    this.password = '';
-    
-    // Clear fields
-    this.signUpUsername = '';
-    this.signUpEmail = '';
-    this.signUpPass = '';
-    this.signUpConfirmPass = '';
-
-    // Switch to login tab
-    this.isSignUpActive = false;
-    this.cdr.detectChanges();
+    });
   }
 }

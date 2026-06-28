@@ -14,7 +14,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 # Import database helpers and models
-from database import get_db, engine, Base, QuizResult, WorkspaceCache
+from database import get_db, engine, Base, QuizResult, WorkspaceCache, User
+import bcrypt
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        pwd_bytes = plain_password.encode('utf-8')
+        hashed_bytes = hashed_password.encode('utf-8')
+        return bcrypt.checkpw(pwd_bytes, hashed_bytes)
+    except Exception:
+        return False
+
+def get_password_hash(password: str) -> str:
+    pwd_bytes = password.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    return hashed.decode('utf-8')
+
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -568,34 +585,75 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    email: str = None
+
+@app.post("/api/auth/register")
+async def register(credentials: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    username_clean = credentials.username.strip().lower()
+    if len(username_clean) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters long.")
+    if len(credentials.password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters long.")
+
+    # Check if user already exists
+    stmt = select(User).filter(User.username == username_clean)
+    existing_user_result = await db.execute(stmt)
+    existing_user = existing_user_result.scalars().first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already exists. Please choose a different name.")
+
+    hashed_pw = get_password_hash(credentials.password)
+    new_user = User(username=username_clean, email=credentials.email, hashed_password=hashed_pw)
+    db.add(new_user)
+    try:
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database registration error: {str(e)}")
+        
+    return {"status": "success", "message": "User registered successfully."}
+
 @app.post("/api/auth/login")
-async def login(credentials: LoginRequest):
+async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     sanitized_username = credentials.username.strip().lower()
     sanitized_password = credentials.password.strip()
 
-    # 🔑 SECURE ROOT CHECK: Verifying system access clearance (permitting any sandbox user for registration flow)
-    if (sanitized_username == "narendra" and sanitized_password == "admin123") or (len(sanitized_username) >= 3 and len(sanitized_password) >= 4):
-        print(f"[AUTH] Authentication Success for operator/user: {credentials.username}")
-        
-        # Calculate session lifetime limit parameters
+    # Query database for user
+    stmt = select(User).filter(User.username == sanitized_username)
+    result = await db.execute(stmt)
+    user = result.scalars().first()
+
+    # If the user is narendra, check with default fallback if not in DB
+    is_valid = False
+    if user:
+        if verify_password(sanitized_password, user.hashed_password):
+            is_valid = True
+    elif sanitized_username == "narendra" and sanitized_password == "admin123":
+        # Automatically register the developer account so it works in the future
+        hashed_pw = get_password_hash("admin123")
+        developer_user = User(username="narendra", email="narendrakillari181203@gmail.com", hashed_password=hashed_pw)
+        db.add(developer_user)
+        await db.commit()
+        is_valid = True
+
+    if is_valid:
+        print(f"[AUTH] Authentication Success for user: {credentials.username}")
         expire_time = datetime.datetime.utcnow() + datetime.timedelta(hours=TOKEN_EXPIRATION_HOURS)
-        
-        # Build encrypted JWT token container payload
         token_payload = {
             "sub": credentials.username,
             "exp": expire_time
         }
-        
         generated_token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)
-        
         return {
             "access_token": generated_token,
             "token_type": "bearer",
             "username": credentials.username
         }
-    
-    # Reject wrong parameters immediately
+
     raise HTTPException(
         status_code=401,
-        detail="Authentication failed. Invalid vector identification parameters configuration."
+        detail="Authentication failed. Invalid username or password."
     )

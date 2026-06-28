@@ -44,6 +44,16 @@ class WorkspaceCache(Base):
     key_points: Mapped[str] = mapped_column(Text, nullable=False)  # JSON text
     quiz_data: Mapped[str] = mapped_column(Text, nullable=False)   # JSON text
 
+# User model schema
+class User(Base):
+    __tablename__ = "users"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
+    email: Mapped[str] = mapped_column(String, nullable=True)
+    hashed_password: Mapped[str] = mapped_column(String, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
 # Async database session generator dependency
 async def get_db():
     async with SessionLocal() as session:

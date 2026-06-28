@@ -53,6 +53,11 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/auth/login`, { username, password });
   }
 
+  register(username: string, password: string, email: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/auth/register`, { username, password, email });
+  }
+
+
   isTokenValid(token: string | null): boolean {
     if (!token) return false;
     try {
