@@ -1,4 +1,4 @@
-import { Component, ViewChild, ElementRef, ChangeDetectorRef, OnInit, OnDestroy, Input } from '@angular/core';
+import { Component, ViewChild, ElementRef, ChangeDetectorRef, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser'; 
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -51,6 +51,7 @@ export interface RecommendedLesson {
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   @Input() username: string = '';
+  @Output() logout = new EventEmitter<void>();
   @ViewChild('chatViewport') private chatViewport!: ElementRef;
   @ViewChild('localPlayer') localPlayer!: ElementRef<HTMLVideoElement>;
 
@@ -98,6 +99,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
     }
+  }
+
+  onLogout(): void {
+    this.logout.emit();
   }
 
   initYouTubeAPI(): void {

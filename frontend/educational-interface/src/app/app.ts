@@ -11,7 +11,7 @@ import { ApiService } from './services/api.service';
   template: `
     <app-login *ngIf="!isUserAuthenticated" (loginSuccess)="unlockSessionAccess($event)"></app-login>
     
-    <app-dashboard *ngIf="isUserAuthenticated" [username]="sessionUsername"></app-dashboard>
+    <app-dashboard *ngIf="isUserAuthenticated" [username]="sessionUsername" (logout)="lockSessionAccess()"></app-dashboard>
   `,
   styles: [`
     :host {
@@ -21,6 +21,7 @@ import { ApiService } from './services/api.service';
       width: 100%;
       height: 100vh;
       overflow: hidden;
+      background-color: #0b0f19;
     }
   `]
 })
@@ -45,6 +46,14 @@ export class AppComponent implements OnInit {
   unlockSessionAccess(username: string) {
     this.sessionUsername = username;
     this.isUserAuthenticated = true;
+  }
+
+  lockSessionAccess() {
+    console.log('🔒 Locking session access. Removing tokens from memory matrix...');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('sessionUser');
+    this.sessionUsername = '';
+    this.isUserAuthenticated = false;
   }
 }
 
