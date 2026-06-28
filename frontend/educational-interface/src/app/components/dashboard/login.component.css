@@ -68,13 +68,20 @@
   font-weight: 500;
 }
 
+.field-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
 .field-wrapper input {
   width: 100%;
   box-sizing: border-box;
   background: #0f1422;
   border: 1px solid #1e293b;
   color: #ffffff;
-  padding: 0.9rem 1.1rem;
+  padding: 0.9rem 3.2rem 0.9rem 1.1rem;
   border-radius: 12px;
   font-size: 1rem;
   outline: none;
@@ -231,4 +238,27 @@
   font-size: 0.85rem;
   line-height: 1.4;
   margin-bottom: 1.5rem;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.password-toggle-btn:hover {
+  color: #ffffff;
+}
+
+.password-toggle-btn svg {
+  width: 20px;
+  height: 20px;
 }

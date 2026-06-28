@@ -22,6 +22,11 @@ export class LoginComponent {
   signUpPass: string = '';
   signUpConfirmPass: string = '';
 
+  // Password Visibility States
+  showPassword: boolean = false;
+  showRegPassword: boolean = false;
+  showRegConfirmPassword: boolean = false;
+
   errorMessage: string | null = null;
   successMessage: string | null = null;
 
