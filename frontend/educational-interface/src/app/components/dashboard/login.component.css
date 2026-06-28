@@ -1,12 +1,13 @@
 .security-gateway-matrix {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  min-height: 100vh;
+  height: 100vh;
   background-color: #0b0f19;
   background-image: radial-gradient(circle at 50% 30%, #1e1b4b 0%, #0b0f19 70%);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   padding: 1.5rem;
+  box-sizing: border-box;
 }
 
 .auth-glass-card {
@@ -18,6 +19,7 @@
   width: 100%;
   max-width: 450px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+  margin: auto;
 }
 
 .auth-brand-header {
@@ -164,7 +166,7 @@
 /* Ensure absolute container can overlay correctly */
 .security-gateway-matrix {
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
   z-index: 1;
 }
 
