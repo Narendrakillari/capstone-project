@@ -1,0 +1,562 @@
+<div class="dashboard-matrix">
+  <!-- Left Sidebar -->
+  <aside class="left-sidebar">
+    <div class="sidebar-brand">
+      <img src="logo.png" alt="VisualLearn AI Logo" class="brand-logo-img">
+      <span class="brand-text">VisualLearn AI</span>
+    </div>
+
+    <!-- Navigation Menu -->
+    <nav class="nav-menu">
+      <button
+        *ngFor="let item of ['Home', 'Library', 'My Notes', 'Quiz Generator', 'History', 'Bookmarks', 'Analytics']"
+        (click)="activeNav = item" [class.active]="activeNav === item" class="nav-item">
+        <span class="nav-indicator-dot"></span>
+        <span class="nav-label">{{ item }}</span>
+      </button>
+    </nav>
+
+    <!-- Streaks & XP Panel -->
+    <div class="streak-xp-panel">
+      <!-- Learning Streak -->
+      <div class="streak-tracker">
+        <div class="circular-progress" [style.background]="getStreakBackground()">
+          <div class="streak-value">
+            <span class="days-num">{{ streakDays }}</span>
+            <span class="days-label">Days</span>
+          </div>
+        </div>
+        <span class="streak-title">Learning Streak</span>
+      </div>
+
+      <!-- Experience Bar -->
+      <div class="xp-container">
+        <div class="xp-header">
+          <span class="xp-level">Intermediate</span>
+          <span class="xp-ratio">{{ levelXP }}/2000 XP</span>
+        </div>
+        <div class="xp-bar-bg">
+          <div class="xp-bar-fill" [style.width.%]="(levelXP / 2000) * 100"></div>
+        </div>
+        <span class="xp-footer">750 XP to Next Level</span>
+      </div>
+    </div>
+
+    <!-- Upgrade Card -->
+    <div class="upgrade-card">
+      <div class="upgrade-glow"></div>
+      <h4>Upgrade to Pro</h4>
+      <p>Unlock unlimited video generation & interactive mind maps.</p>
+      <button class="upgrade-btn">Go Premium</button>
+    </div>
+  </aside>
+
+  <!-- Main Center Content Area -->
+  <main class="center-content" *ngIf="activeNav === 'Home'">
+    <!-- Sticky Search Bar -->
+    <div class="sticky-search-wrapper">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+        </svg>
+        <input type="text" [(ngModel)]="searchQuery" placeholder="Enter topic, e.g., Solar System" class="center-search-input"
+          [disabled]="isGenerating" (keyup.enter)="onGenerate()" />
+        <button (click)="onGenerate()" [disabled]="isGenerating || !searchQuery.trim()" class="generate-btn">
+          <span *ngIf="!isGenerating">Generate</span>
+          <span *ngIf="isGenerating" class="search-spinner"></span>
+        </button>
+      </div>
+    </div>
+
+    <div class="content-scroll-body">
+      <!-- 1. GENERATING STATE (Pulsing Animated Skeleton UI) -->
+      <ng-container *ngIf="isGenerating">
+        <!-- Header Module Skeleton -->
+        <div class="lesson-header-module fade-in">
+          <div class="title-section" style="width: 100%;">
+            <div class="skeleton-loader skeleton-title" style="margin-bottom: 0.75rem;"></div>
+            <div class="badges-row">
+              <div class="skeleton-loader skeleton-badge"></div>
+              <div class="skeleton-loader skeleton-badge"></div>
+              <div class="skeleton-loader skeleton-badge"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Player Card Skeleton -->
+        <div class="player-card fade-in">
+          <div class="video-container-overlay">
+            <div class="skeleton-loader skeleton-video"></div>
+          </div>
+          <div class="related-topics-section">
+            <div class="skeleton-loader skeleton-text-field" style="width: 100px;"></div>
+            <div class="chips-row">
+              <div class="skeleton-loader skeleton-badge" style="width: 70px;"></div>
+              <div class="skeleton-loader skeleton-badge" style="width: 70px;"></div>
+              <div class="skeleton-loader skeleton-badge" style="width: 90px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Split Panel Skeleton -->
+        <div class="bottom-split-grid fade-in">
+          <div class="split-pane chat-pane">
+            <div class="skeleton-loader skeleton-text-field" style="width: 120px; margin-bottom: 1rem;"></div>
+            <div class="chat-viewport">
+              <div class="skeleton-loader skeleton-text-field" style="width: 50%; margin-bottom: 0.5rem;"></div>
+              <div class="skeleton-loader skeleton-text-field" style="width: 70%; margin-bottom: 0.5rem;"></div>
+              <div class="skeleton-loader skeleton-text-field"
+                style="width: 40%; align-self: flex-end; margin-bottom: 0.5rem;"></div>
+            </div>
+            <div class="chat-input-bar">
+              <div class="skeleton-loader skeleton-button"></div>
+            </div>
+          </div>
+          <div class="split-pane quiz-pane">
+            <div class="skeleton-loader skeleton-text-field" style="width: 120px; margin-bottom: 1rem;"></div>
+            <div class="quiz-container">
+              <div class="skeleton-loader skeleton-text-field" style="width: 90%; margin-bottom: 1rem;"></div>
+              <div class="quiz-options-list">
+                <div class="skeleton-loader skeleton-button" style="margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-loader skeleton-button" style="margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-loader skeleton-button" style="margin-bottom: 0.5rem;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- 2. IDLE STATE (Static/Non-pulsing Skeleton UI) -->
+      <ng-container *ngIf="!hasData && !isGenerating">
+        <!-- Header Module Skeleton -->
+        <div class="lesson-header-module fade-in">
+          <div class="title-section" style="width: 100%;">
+            <div class="skeleton-title-static" style="margin-bottom: 0.75rem;"></div>
+            <div class="badges-row">
+              <div class="skeleton-badge-static"></div>
+              <div class="skeleton-badge-static"></div>
+              <div class="skeleton-badge-static"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Player Card Skeleton -->
+        <div class="player-card fade-in">
+          <div class="video-container-overlay">
+            <div class="idle-video-overlay">
+              <div class="idle-badge">
+                <svg class="idle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polygon points="10 8 16 12 10 16 10 8" />
+                </svg>
+                <span>Enter a topic to generate a workspace</span>
+              </div>
+            </div>
+          </div>
+          <div class="related-topics-section">
+            <div class="skeleton-text-field-static" style="width: 100px;"></div>
+            <div class="chips-row">
+              <div class="skeleton-badge-static" style="width: 70px;"></div>
+              <div class="skeleton-badge-static" style="width: 70px;"></div>
+              <div class="skeleton-badge-static" style="width: 90px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Split Panel Skeleton -->
+        <div class="bottom-split-grid fade-in">
+          <div class="split-pane chat-pane">
+            <div class="skeleton-text-field-static" style="width: 120px; margin-bottom: 1rem;"></div>
+            <div class="chat-viewport">
+              <div class="chat-empty">Chat will initialize once a topic is generated.</div>
+            </div>
+            <div class="chat-input-bar">
+              <div class="skeleton-button-static"></div>
+            </div>
+          </div>
+          <div class="split-pane quiz-pane">
+            <div class="skeleton-text-field-static" style="width: 120px; margin-bottom: 1rem;"></div>
+            <div class="quiz-container">
+              <div class="chat-empty">Quiz questions will load here.</div>
+              <div class="quiz-options-list">
+                <div class="skeleton-button-static" style="margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-button-static" style="margin-bottom: 0.5rem;"></div>
+                <div class="skeleton-button-static" style="margin-bottom: 0.5rem;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- 3. ACTIVE CONTENT STATE (Rich Rendered Content Layout) -->
+      <ng-container *ngIf="hasData && !isGenerating">
+        <!-- Header Module -->
+        <div class="lesson-header-module">
+          <div class="title-section">
+            <h2 class="topic-title">Topic Name: {{ topicTitle }}</h2>
+            <div class="badges-row">
+              <span *ngFor="let badge of metaBadges" class="meta-badge" [ngClass]="getBadgeClass(badge)">
+                {{ badge }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video Player Card -->
+        <div class="player-card">
+          <!-- Main Panoramic Video Core Workspace Display Block -->
+          <div class="cinematic-video-frame-container">
+            
+            <!-- YouTube API Target Placeholder Wrapper -->
+            <div *ngIf="isYouTube" class="embedded-youtube-player-wrapper">
+              <div id="yt-player-placeholder"></div>
+            </div>
+
+            <!-- HTML5 Local Video Player -->
+            <video 
+              #localPlayer
+              *ngIf="!isYouTube && videoUrl"
+              autoplay 
+              muted 
+              loop 
+              [src]="videoUrl" 
+              class="html5-video"
+              (play)="onLocalPlayState(true)"
+              (pause)="onLocalPlayState(false)"
+              (timeupdate)="onLocalTimeUpdate()"
+              (loadedmetadata)="onLocalMetadataLoaded()"
+            ></video>
+
+            <!-- Subtle futuristic digital overlay filter line texture over the video -->
+            <div class="hud-dashboard-filter"></div>
+
+            <!-- CUSTOM INTERACTIVE HUD VIDEO CONTROLS BAR -->
+            <div class="custom-video-controls fade-in" *ngIf="isYouTube ? player : videoUrl">
+              <!-- Play/Pause Button -->
+              <button class="control-btn play-btn" (click)="togglePlay()" [title]="isPlaying ? 'Pause' : 'Play'">
+                <svg *ngIf="!isPlaying" viewBox="0 0 24 24" fill="currentColor" class="control-icon">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <svg *ngIf="isPlaying" viewBox="0 0 24 24" fill="currentColor" class="control-icon">
+                  <rect x="6" y="4" width="4" height="16"></rect>
+                  <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+              </button>
+
+              <!-- Progress Timeline slider -->
+              <div class="progress-container">
+                <input 
+                  type="range" 
+                  min="0" 
+                  [max]="duration" 
+                  [value]="currentTime" 
+                  (input)="onSeekChange(+$any($event.target).value)"
+                  class="progress-slider"
+                >
+                <span class="time-label">{{ formatTime(currentTime) }} / {{ formatTime(duration) }}</span>
+              </div>
+
+              <!-- Volume Control Slider -->
+              <div class="volume-container">
+                <button class="control-btn volume-icon-btn" (click)="onVolumeChange(volume === 0 ? 50 : 0)">
+                  <svg *ngIf="volume === 0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="control-icon">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <line x1="23" y1="9" x2="17" y2="15"></line>
+                    <line x1="17" y1="9" x2="23" y2="15"></line>
+                  </svg>
+                  <svg *ngIf="volume > 0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="control-icon">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                  </svg>
+                </button>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="100" 
+                  [value]="volume" 
+                  (input)="onVolumeChange(+$any($event.target).value)"
+                  class="volume-slider"
+                >
+              </div>
+
+              <!-- Quality Selector Dropdown -->
+              <div class="quality-container">
+                <select 
+                  [ngModel]="currentQuality" 
+                  (ngModelChange)="onQualityChange($event)"
+                  class="quality-dropdown"
+                >
+                  <option value="1080p">1080p</option>
+                  <option value="720p">720p</option>
+                  <option value="480p">480p</option>
+                  <option value="Auto">Auto</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Related Topics Chips -->
+          <div class="related-topics-section">
+            <span class="related-title">Related Topics:</span>
+            <div class="chips-row">
+              <button *ngFor="let chip of relatedTopics" (click)="onGenerate(chip)" class="chip-pill">
+                #{{ chip }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Split Panel -->
+        <div class="bottom-split-grid">
+          <!-- Left: Ask Anything Contextual Chat -->
+          <div class="split-pane chat-pane">
+            <h3 class="pane-title">Ask Anything</h3>
+
+            <div class="chat-viewport" #chatViewport>
+              <div *ngIf="chatMessages.length === 0" class="chat-empty">
+                Ask any follow-up question about {{ topicTitle }}...
+              </div>
+              <div *ngFor="let msg of chatMessages" class="chat-message" [class.user]="msg.sender === 'user'">
+                <div class="msg-bubble">
+                  <span class="msg-sender">{{ msg.sender === 'user' ? 'You' : 'AI Assistant' }}</span>
+                  <p class="msg-text">{{ msg.text }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Follow-up Question Suggestions -->
+            <div class="follow-up-suggestions">
+              <button *ngFor="let suggestion of getPredefinedQuestions()" (click)="sendPredefinedQuestion(suggestion)"
+                class="suggestion-pill">
+                {{ suggestion }}
+              </button>
+            </div>
+
+            <!-- Input field -->
+            <div class="chat-input-bar">
+              <input type="text" [(ngModel)]="chatInput" placeholder="Ask a question..." (keyup.enter)="sendChat()"
+                class="chat-input" />
+              <button (click)="sendChat()" [disabled]="!chatInput.trim()" class="chat-send-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Quick Quiz MCQs -->
+          <div class="split-pane quiz-pane">
+            <h3 class="pane-title">Quick Quiz</h3>
+
+            <div class="quiz-container">
+              <h4 class="quiz-question">{{ quizQuestion }}</h4>
+
+              <div class="quiz-options-list">
+                <button *ngFor="let option of quizOptions; let i = index" (click)="selectOption(i)"
+                  [class.selected]="selectedQuizOption === i"
+                  [class.correct]="selectedQuizOption !== null && i === correctAnswerIndex"
+                  [class.incorrect]="selectedQuizOption === i && i !== correctAnswerIndex"
+                  [disabled]="selectedQuizOption !== null" class="quiz-opt-btn">
+                  <span class="opt-indicator">{{ getOptionLetter(i) }}</span>
+                  <span class="opt-text">{{ option }}</span>
+                </button>
+              </div>
+
+              <div *ngIf="selectedQuizOption !== null" class="quiz-feedback">
+                <span *ngIf="selectedQuizOption === correctAnswerIndex" class="text-success">
+                  🎉 Correct! You earned +50 XP.
+                </span>
+                <span *ngIf="selectedQuizOption !== correctAnswerIndex" class="text-danger">
+                  ❌ Incorrect. The correct answer was: {{ quizOptions[correctAnswerIndex] }}
+                </span>
+                <button (click)="resetQuiz()" class="try-again-btn">Reset Quiz</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+  </main>
+
+  <!-- Right Sidebar Panel -->
+  <aside class="right-sidebar" *ngIf="activeNav === 'Home'">
+    <!-- Tabbed Section Switcher -->
+    <div class="sidebar-tabs">
+      <button *ngFor="let tab of ['Key Points', 'Summary', 'Transcript', 'Mind Map']" (click)="rightSidebarTab = tab"
+        [class.active]="rightSidebarTab === tab" class="sidebar-tab-btn">
+        {{ tab }}
+      </button>
+    </div>
+
+    <!-- Tab Content Area -->
+    <div class="sidebar-tab-content">
+      <!-- 1. Skeleton Sidebar Content (when isGenerating is true) -->
+      <div *ngIf="isGenerating" class="tab-panel key-points-panel fade-in">
+        <div class="takeaways-list">
+          <div *ngFor="let i of [1, 2, 3]" class="takeaway-item">
+            <div class="takeaway-header">
+              <div class="skeleton-loader skeleton-list-entry" style="width: 40px;"></div>
+            </div>
+            <div class="skeleton-loader skeleton-list-entry" style="margin-top: 0.5rem;"></div>
+            <div class="skeleton-loader skeleton-list-entry" style="width: 80%; margin-top: 0.35rem;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Skeleton Sidebar Content (when idle: hasData is false and isGenerating is false) -->
+      <div *ngIf="!hasData && !isGenerating" class="tab-panel key-points-panel fade-in">
+        <div class="takeaways-list">
+          <div *ngFor="let i of [1, 2, 3]" class="takeaway-item">
+            <div class="takeaway-header">
+              <div class="skeleton-list-entry-static" style="width: 40px;"></div>
+            </div>
+            <div class="skeleton-list-entry-static" style="margin-top: 0.5rem;"></div>
+            <div class="skeleton-list-entry-static" style="width: 80%; margin-top: 0.35rem;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Active Sidebar Content (when hasData is true and isGenerating is false) -->
+      <ng-container *ngIf="hasData && !isGenerating">
+        <!-- Key Points Tab -->
+        <div *ngIf="rightSidebarTab === 'Key Points'" class="tab-panel key-points-panel fade-in">
+          <ol class="takeaways-list">
+            <li *ngFor="let point of keyPoints; let idx = index" class="takeaway-item">
+              <div class="takeaway-header">
+                <span class="takeaway-num">0{{ idx + 1 }}</span>
+                <button (click)="copyToClipboard(point)" class="copy-btn" title="Copy Key Point">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
+              </div>
+              <p class="takeaway-text">{{ point }}</p>
+            </li>
+          </ol>
+        </div>
+
+        <!-- Summary Tab -->
+        <div *ngIf="rightSidebarTab === 'Summary'" class="tab-panel summary-panel fade-in">
+          <h4 class="summary-title">AI Video Summary</h4>
+          <p class="summary-text">{{ videoSummary }}</p>
+        </div>
+
+        <!-- Transcript Tab -->
+        <div *ngIf="rightSidebarTab === 'Transcript'" class="tab-panel transcript-panel fade-in">
+          <p class="transcript-text">
+            <span class="timestamp">[00:02]</span> Today we look at {{ topicTitle }}, the core processes that govern
+            this dynamic topic.
+          </p>
+          <p class="transcript-text">
+            <span class="timestamp">[00:45]</span> Key steps involve energy excitation and pathway integration.
+          </p>
+          <p class="transcript-text">
+            <span class="timestamp">[01:30]</span> This is followed by downstream reactions and system conversion.
+          </p>
+          <p class="transcript-text">
+            <span class="timestamp">[02:15]</span> The cycles then stabilize the final products.
+          </p>
+        </div>
+
+        <!-- Mind Map Tab -->
+        <div *ngIf="rightSidebarTab === 'Mind Map'" class="tab-panel mindmap-panel fade-in">
+          <div class="mock-mindmap">
+            <div class="mindmap-node root">{{ topicTitle }}</div>
+            <div class="mindmap-connector"></div>
+            <div class="mindmap-branches">
+              <div class="mindmap-node leaf">Core Reactants & Inputs</div>
+              <div class="mindmap-node leaf">Main Pathways & Cycles</div>
+              <div class="mindmap-node leaf">Key Products & Outputs</div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Right Sidebar Footer -->
+    <div class="sidebar-footer">
+      <!-- Utility Toolbar -->
+      <div class="utility-toolbar">
+        <button (click)="triggerUtility('Copy')" class="util-btn">Copy</button>
+        <button (click)="triggerUtility('Translate')" class="util-btn">Translate</button>
+        <button (click)="triggerUtility('Download PDF')" class="util-btn">Download PDF</button>
+      </div>
+
+      <!-- Recommended Lessons Card Stack -->
+      <div class="recommendations-container">
+        <h4 class="rec-title">Start Learning</h4>
+
+        <!-- 1. Generating State (Pulsing Skeleton Cards) -->
+        <div *ngIf="isGenerating" class="rec-stack">
+          <div *ngFor="let i of [1, 2]" class="rec-card" style="cursor: default;">
+            <div class="rec-thumb">
+              <div class="skeleton-loader skeleton-video" style="height: 100%;"></div>
+            </div>
+            <div class="rec-info" style="flex: 1;">
+              <div class="skeleton-loader skeleton-badge" style="width: 50px; margin-bottom: 0.25rem;"></div>
+              <div class="skeleton-loader skeleton-text-field" style="width: 80%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Idle State (Static Skeleton Cards) -->
+        <div *ngIf="!hasData && !isGenerating" class="rec-stack">
+          <div *ngFor="let i of [1, 2]" class="rec-card" style="cursor: default;">
+            <div class="rec-thumb">
+              <div class="skeleton-video-static"></div>
+            </div>
+            <div class="rec-info" style="flex: 1;">
+              <div class="skeleton-badge-static" style="width: 50px; margin-bottom: 0.25rem;"></div>
+              <div class="skeleton-text-field-static" style="width: 80%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Active State (Populated Cards) -->
+        <div *ngIf="hasData && !isGenerating" class="rec-stack">
+          <div *ngFor="let rec of recommendedLessons" (click)="onGenerate(rec.topic)"
+            [class.active-rec]="topicTitle === rec.topic" class="rec-card">
+            <div class="rec-thumb">
+              <div class="rec-thumb-overlay"></div>
+              <span class="duration-badge">{{ rec.duration }}</span>
+            </div>
+            <div class="rec-info">
+              <span class="rec-meta">{{ rec.subject }} • {{ rec.grade }}</span>
+              <h5 class="rec-card-title">{{ rec.topic }}</h5>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Quiz Generator View -->
+  <app-quiz *ngIf="activeNav === 'Quiz Generator'" [username]="username"></app-quiz>
+
+  <!-- Library View -->
+  <app-library *ngIf="activeNav === 'Library'" (topicSelected)="onTopicSelected($event)"></app-library>
+
+  <!-- My Notes View -->
+  <app-notes *ngIf="activeNav === 'My Notes'" (topicSelected)="onTopicSelected($event)"></app-notes>
+
+  <!-- History View -->
+  <app-history *ngIf="activeNav === 'History'" (topicSelected)="onTopicSelected($event)"></app-history>
+
+  <!-- Bookmarks View -->
+  <app-bookmarks *ngIf="activeNav === 'Bookmarks'" (topicSelected)="onTopicSelected($event)"></app-bookmarks>
+
+  <!-- Analytics View -->
+  <app-analytics *ngIf="activeNav === 'Analytics'"></app-analytics>
+
+  <!-- Toast Notification -->
+  <div *ngIf="toastMessage" class="toast-popup">
+    {{ toastMessage }}
+  </div>
+</div>

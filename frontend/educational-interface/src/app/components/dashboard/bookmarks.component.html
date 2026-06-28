@@ -1,0 +1,52 @@
+<div class="bookmarks-dashboard-matrix fade-in">
+  <div class="bookmarks-header-block">
+    <div class="header-titles">
+      <h1>Bookmarked Resources</h1>
+      <p class="subtitle">Quick access to your saved educational videos, takeaways, and quiz questions</p>
+    </div>
+  </div>
+
+  <div class="filter-tabs-row">
+    <button 
+      *ngFor="let type of ['All', 'Video', 'Keypoint', 'Mindmap', 'Question']" 
+      (click)="filterBookmarks(type)" 
+      [class.active]="selectedType === type" 
+      class="filter-tab"
+    >
+      {{ type === 'All' ? 'Show All' : type === 'Keypoint' ? 'Takeaways' : type + 's' }}
+    </button>
+  </div>
+
+  <div class="bookmarks-grid">
+    <div *ngFor="let item of getFilteredBookmarks()" class="bookmark-card">
+      <div class="bookmark-card-header">
+        <span class="type-badge" [ngClass]="item.type">{{ getTypeLabel(item.type) }}</span>
+        <span class="category-badge" [ngClass]="item.category.toLowerCase()">{{ item.category }}</span>
+      </div>
+
+      <h3 class="bookmark-title">{{ item.title }}</h3>
+      <span class="topic-tag">Topic: {{ item.topic }}</span>
+      <p class="bookmark-snippet">{{ item.contentSnippet }}</p>
+
+      <div class="bookmark-card-footer">
+        <button (click)="removeBookmark(item.id, $event)" class="btn-remove" title="Remove Bookmark">
+          🗑️ Remove
+        </button>
+        <button (click)="launchTopic(item.topic)" class="btn-launch-topic">
+          Open Workspace ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="getFilteredBookmarks().length === 0" class="empty-bookmarks">
+    <div class="empty-icon">🔖</div>
+    <h3>No bookmarks found</h3>
+    <p>Bookmark key takeaways, questions, or mind maps during your learning sessions for quick retrieval here.</p>
+  </div>
+
+  <!-- Toast Notification -->
+  <div *ngIf="toastMessage" class="toast-popup">
+    {{ toastMessage }}
+  </div>
+</div>

@@ -1,0 +1,478 @@
+/* ========================================================= */
+/* 🎛️ CORE LAYOUT GRID MATRIX                                */
+/* ========================================================= */
+.quiz-dashboard-matrix {
+  padding: 2rem;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #f8fafc;
+  background-color: #0b0f19;
+  min-height: 100vh;
+}
+
+.fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================================= */
+/* 📭 CONDITIONAL STATE 1: BLANK / IDLE LAYOUT PANEL          */
+/* ========================================================= */
+.quiz-idle-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Filter Navigation Submenu Tabs */
+.filter-tabs-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 2.5rem;
+  align-self: flex-start;
+  background: rgba(30, 41, 59, 0.5);
+  padding: 0.35rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.filter-tab {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-tab.active, .filter-tab:hover {
+  background: #6366f1;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* Empty Center Frame Showcase Content */
+.empty-hero-content {
+  text-align: center;
+  background: radial-gradient(circle at top, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
+  padding: 3rem 2rem;
+  width: 100%;
+  border-radius: 24px;
+  margin-bottom: 3rem;
+}
+
+.artwork-fallback-placeholder {
+  font-size: 5rem;
+  margin-bottom: 1.5rem;
+  filter: drop-shadow(0 10px 15px rgba(0,0,0,0.3));
+}
+
+.main-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 0.75rem;
+}
+
+.subtitle-text {
+  color: #94a3b8;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+}
+
+/* Centered Large Interactive Search Generation Container Wrapper */
+.massive-search-box-wrapper {
+  display: flex;
+  align-items: center;
+  background: #131a2c;
+  border: 2px solid rgba(99, 102, 241, 0.2);
+  border-radius: 16px;
+  padding: 0.5rem;
+  max-width: 650px;
+  margin: 0 auto 1.5rem auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  transition: border-color 0.2s;
+}
+
+.massive-search-box-wrapper:focus-within {
+  border-color: #6366f1;
+}
+
+.massive-quiz-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 1.1rem;
+  padding: 0.75rem 1rem;
+}
+
+.massive-quiz-input::placeholder {
+  color: #475569;
+}
+
+.action-generate-btn {
+  background: #6366f1;
+  color: #ffffff;
+  border: none;
+  padding: 0.85rem 1.75rem;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.action-generate-btn:hover {
+  background: #4f46e5;
+}
+
+.alternative-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  margin: 1rem 0;
+}
+
+.alternative-divider::before, .alternative-divider::after {
+  content: "";
+  height: 1px;
+  width: 50px;
+  background: #1e293b;
+  margin: 0 1rem;
+}
+
+.explore-topics-link {
+  background: transparent;
+  border: 1px solid #1e293b;
+  color: #6366f1;
+  font-weight: 600;
+  padding: 0.6rem 1.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.explore-topics-link:hover {
+  background: rgba(99, 102, 241, 0.05);
+  border-color: #6366f1;
+}
+
+/* Popular Topics Bottom Footer Cards Panel */
+.popular-topics-footer {
+  width: 100%;
+}
+
+.footer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.view-all-text {
+  background: transparent;
+  border: none;
+  color: #6366f1;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.topics-pills-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  width: 100%;
+}
+
+.topic-pill {
+  flex: 1;
+  min-width: 180px;
+  background: #131a2c;
+  border: 1px solid #1e293b;
+  padding: 1.25rem;
+  border-radius: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.2s;
+}
+
+.topic-pill:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+  background: #182238;
+}
+
+.topic-pill span {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #64748b;
+}
+
+/* ========================================================= */
+/* 📊 STATE 2: ACTIVE ANALYTICS DASHBOARD LAYOUT STYLES       */
+/* ========================================================= */
+.dashboard-overview-layout {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-header-block {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.metrics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.kpi-card {
+  background: #131a2c;
+  border: 1px solid #1e293b;
+  padding: 1.5rem;
+  border-radius: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; width: 4px; height: 100%;
+}
+
+.kpi-card.purple::before { background: #8b5cf6; }
+.kpi-card.green::before { background: #10b981; }
+.kpi-card.blue::before { background: #3b82f6; }
+.kpi-card.gold::before { background: #f59e0b; }
+
+.kpi-label { color: #64748b; font-size: 0.9rem; }
+.kpi-value { font-size: 2rem; font-weight: 700; margin: 0.5rem 0 0.25rem 0; color: #ffffff;}
+.kpi-subtext { font-size: 0.8rem; color: #10b981; }
+
+.split-row-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.panel-card {
+  background: #131a2c;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  padding: 1.5rem;
+}
+
+/* Donut Chart Simulation layout styles */
+.chart-flex-wrap {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.donut-chart-container {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: conic-gradient(#8b5cf6 0% 78%, #f59e0b 78% 95%, #14b8a6 95% 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-center {
+  width: 85px;
+  height: 85px;
+  background: #131a2c;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-val { font-size: 1.35rem; font-weight: 700; color: #fff;}
+.donut-lbl { font-size: 0.7rem; color: #64748b;}
+
+/* Lists, Badges and Custom Data Tables Styling */
+.custom-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.custom-data-table th {
+  text-align: left;
+  color: #475569;
+  font-size: 0.85rem;
+  padding-bottom: 0.75rem;
+}
+
+.custom-data-table td {
+  padding: 0.9rem 0;
+  border-top: 1px solid #1e293b;
+  font-size: 0.95rem;
+}
+
+.score-ring {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+/* Banner Footer element strip styling */
+.daily-challenge-banner-row {
+  background: linear-gradient(90deg, #1e1b4b 0%, #311042 100%);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 16px;
+  padding: 1.25rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ========================================================= */
+/* 🎯 STATE 3: ACTIVE INTERACTIVE QUIZ ARENA DISPLAY         */
+/* ========================================================= --> */
+.active-quiz-workspace {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.workspace-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.back-dashboard-btn {
+  background: transparent;
+  border: 1px solid #1e293b;
+  color: #94a3b8;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.quiz-question-card {
+  background: #131a2c;
+  border: 1px solid #1e293b;
+  border-radius: 24px;
+  padding: 2.5rem;
+  box-shadow: 0 20px 40px -15px rgba(0,0,0,0.7);
+}
+
+.active-question-text {
+  font-size: 1.4rem;
+  line-height: 1.5;
+  margin-bottom: 2rem;
+  color: #ffffff;
+}
+
+.options-grid-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.workspace-option-btn {
+  background: #0f1422;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  padding: 1.1rem 1.5rem;
+  text-align: left;
+  color: #cbd5e1;
+  font-size: 1.05rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  transition: all 0.2s;
+}
+
+.workspace-option-btn:hover:not([disabled]) {
+  border-color: #6366f1;
+  background: #161d30;
+}
+
+.option-prefix-tag {
+  background: #1e293b;
+  color: #94a3b8;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* Evaluated Correction Highlights classes injection mapping */
+.workspace-option-btn.selected {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.correct-highlight {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+  color: #10b981 !important;
+}
+
+.correct-highlight .option-prefix-tag {
+  background: #10b981 !important;
+  color: #fff !important;
+}
+
+.incorrect-highlight {
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+  color: #ef4444 !important;
+}
+
+.incorrect-highlight .option-prefix-tag {
+  background: #ef4444 !important;
+  color: #fff !important;
+}
+
+.next-step-btn {
+  background: #6366f1;
+  color: #fff;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-left: auto;
+  display: block;
+}
+
+.next-step-btn:disabled {
+  background: #1e293b;
+  color: #475569;
+  cursor: not-allowed;
+}

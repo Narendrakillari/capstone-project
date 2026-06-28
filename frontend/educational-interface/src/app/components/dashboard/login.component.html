@@ -1,0 +1,151 @@
+<div class="security-gateway-matrix">
+  <!-- Glowing large logo watermark in the background -->
+  <img src="logo.png" alt="VisualLearn AI Logo Watermark" class="auth-bg-logo" />
+
+  <div class="auth-glass-card fade-in">
+    
+    <div class="auth-brand-header">
+      <!-- Crisp logo centered above the text -->
+      <div class="auth-brand-badge-wrapper">
+        <img src="logo.png" alt="VisualLearn AI Logo" class="auth-brand-logo-img" />
+      </div>
+      <h2>VisualLearn AI</h2>
+      <p class="auth-subtitle">Quantum Security & Learning Gateway</p>
+    </div>
+
+    <!-- Toggle Selector Tabs -->
+    <div class="auth-tabs-nav">
+      <button 
+        type="button" 
+        class="auth-tab-btn" 
+        [class.active]="!isSignUpActive" 
+        (click)="toggleTab('login')"
+      >
+        Sign In
+      </button>
+      <button 
+        type="button" 
+        class="auth-tab-btn" 
+        [class.active]="isSignUpActive" 
+        (click)="toggleTab('signup')"
+      >
+        Register
+      </button>
+    </div>
+
+    <!-- Success / Info Message -->
+    <div *ngIf="successMessage" class="auth-success-banner">
+      ✓ {{ successMessage }}
+    </div>
+
+    <!-- Error Banner -->
+    <div *ngIf="errorMessage" class="auth-error-banner">
+      ⚠️ {{ errorMessage }}
+    </div>
+
+    <!-- 1. Log In Form -->
+    <form *ngIf="!isSignUpActive" (ngSubmit)="handleAuthSubmission()" #loginForm="ngForm" class="auth-form-layout">
+      <div class="input-control-group">
+        <label for="username">System Username</label>
+        <div class="field-wrapper">
+          <input 
+            type="text" 
+            id="username" 
+            name="username"
+            [(ngModel)]="username" 
+            placeholder="Enter username" 
+            required
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <div class="input-control-group">
+        <label for="password">Security Password</label>
+        <div class="field-wrapper">
+          <input 
+            type="password" 
+            id="password" 
+            name="password"
+            [(ngModel)]="password" 
+            placeholder="••••••••" 
+            required
+          />
+        </div>
+      </div>
+
+      <button type="submit" [disabled]="!loginForm.form.valid" class="btn-auth-submit">
+        Authenticate Session ➔
+      </button>
+    </form>
+
+    <!-- 2. Sign Up Form -->
+    <form *ngIf="isSignUpActive" (ngSubmit)="handleSignUpSubmission()" #signUpForm="ngForm" class="auth-form-layout">
+      <div class="input-control-group">
+        <label for="reg_username">Choose Username</label>
+        <div class="field-wrapper">
+          <input 
+            type="text" 
+            id="reg_username" 
+            name="reg_username"
+            [(ngModel)]="signUpUsername" 
+            placeholder="Choose username" 
+            required
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <div class="input-control-group">
+        <label for="reg_email">Email Address</label>
+        <div class="field-wrapper">
+          <input 
+            type="email" 
+            id="reg_email" 
+            name="reg_email"
+            [(ngModel)]="signUpEmail" 
+            placeholder="Enter email address"
+            required
+          />
+        </div>
+      </div>
+
+      <div class="input-control-group">
+        <label for="reg_password">Create Password</label>
+        <div class="field-wrapper">
+          <input 
+            type="password" 
+            id="reg_password" 
+            name="reg_password"
+            [(ngModel)]="signUpPass" 
+            placeholder="••••••••" 
+            required
+          />
+        </div>
+      </div>
+
+      <div class="input-control-group">
+        <label for="reg_confirm_password">Confirm Password</label>
+        <div class="field-wrapper">
+          <input 
+            type="password" 
+            id="reg_confirm_password" 
+            name="reg_confirm_password"
+            [(ngModel)]="signUpConfirmPass" 
+            placeholder="••••••••" 
+            required
+          />
+        </div>
+      </div>
+
+      <button type="submit" [disabled]="!signUpForm.form.valid" class="btn-auth-submit">
+        Register Account ➔
+      </button>
+    </form>
+
+    <div class="auth-compliance-footer">
+      <p>Authorized access points only. All operations monitored securely.</p>
+    </div>
+
+  </div>
+</div>

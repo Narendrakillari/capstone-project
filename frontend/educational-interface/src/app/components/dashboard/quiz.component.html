@@ -1,0 +1,191 @@
+<div class="quiz-dashboard-matrix">
+
+  <div *ngIf="currentView === 'dashboard' && !hasQuizHistory" class="quiz-idle-view fade-in">
+    <div class="filter-tabs-row">
+      <button class="filter-tab active">All Quizzes</button>
+      <button class="filter-tab">My Quizzes</button>
+      <button class="filter-tab">Topic Wise</button>
+      <button class="filter-tab">Difficulty</button>
+      <button class="filter-tab">Bookmarks</button>
+    </div>
+
+    <div class="empty-hero-content">
+      <div class="hero-illustration-container">
+        <div class="artwork-fallback-placeholder">📝🎓</div>
+      </div>
+
+      <h1 class="main-title">No quizzes taken yet!</h1>
+      <p class="subtitle-text">Start your learning journey by taking your first quiz.<br>Test your knowledge and track your progress.</p>
+
+      <div class="massive-search-box-wrapper">
+        <input 
+          type="text" 
+          [(ngModel)]="quizSearchQuery" 
+          placeholder="Enter topic to practice, e.g., Physics, Computer Science..." 
+          (keyup.enter)="startCustomQuiz(quizSearchQuery)"
+          class="massive-quiz-input"
+        />
+        <button (click)="startCustomQuiz(quizSearchQuery)" [disabled]="!quizSearchQuery.trim()" class="action-generate-btn">
+          🚀 Take Your First Quiz
+        </button>
+      </div>
+
+      <div class="alternative-divider"><span>or</span></div>
+      <button class="explore-topics-link">📂 Explore Topics</button>
+    </div>
+
+    <div class="popular-topics-footer">
+      <div class="footer-header">
+        <h3>Popular Topics to Practice 🚀</h3>
+        <button class="view-all-text">View All Topics →</button>
+      </div>
+      <div class="topics-pills-grid">
+        <div class="topic-pill" (click)="startCustomQuiz('Physics')">⚛️ Physics <span>12 Quizzes</span></div>
+        <div class="topic-pill" (click)="startCustomQuiz('Chemistry')">🧪 Chemistry <span>15 Quizzes</span></div>
+        <div class="topic-pill" (click)="startCustomQuiz('Biology')">🌿 Biology <span>18 Quizzes</span></div>
+        <div class="topic-pill" (click)="startCustomQuiz('Maths')">🧮 Maths <span>14 Quizzes</span></div>
+        <div class="topic-pill" (click)="startCustomQuiz('Computer Science')">💻 Computer Science <span>20 Quizzes</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="currentView === 'dashboard' && hasQuizHistory" class="dashboard-overview-layout fade-in">
+    <div class="dashboard-header-block">
+      <div class="header-titles">
+        <h1>Quiz Dashboard</h1>
+        <p class="subtitle">Test your knowledge and track your progress</p>
+      </div>
+      <div class="search-bar-inline">
+        <input type="text" [(ngModel)]="quizSearchQuery" (keyup.enter)="startCustomQuiz(quizSearchQuery)" placeholder="Search quizzes, topics..." />
+      </div>
+    </div>
+
+    <div class="metrics-kpi-grid">
+      <div class="kpi-card purple">
+        <span class="kpi-label">Quizzes Taken</span>
+        <h2 class="kpi-value">{{ quizzesTakenCount }}</h2>
+        <span class="kpi-subtext">↑ {{ quizzesTakenCount }} this week</span>
+      </div>
+      <div class="kpi-card green">
+        <span class="kpi-label">Average Score</span>
+        <h2 class="kpi-value">{{ averageScore }}%</h2>
+        <span class="kpi-subtext">↑ Improved!</span>
+      </div>
+      <div class="kpi-card blue">
+        <span class="kpi-label">Best Streak</span>
+        <h2 class="kpi-value">13</h2>
+        <span class="kpi-subtext">days in a row</span>
+      </div>
+      <div class="kpi-card gold">
+        <span class="kpi-label">Total XP</span>
+        <h2 class="kpi-value">{{ totalXP }}</h2>
+        <span class="kpi-subtext">Level 12</span>
+      </div>
+    </div>
+
+    <div class="split-row-grid">
+      <div class="panel-card continue-quiz-box">
+        <h3>Continue Quiz</h3>
+        <div class="continue-card-body">
+          <div class="topic-thumbnail preview-bio"></div>
+          <div class="continue-details">
+            <h4>{{ generatedTopicTitle }}</h4>
+            <span class="tag-bio">General Study</span> • <span class="tag-count">10 Questions</span>
+            <div class="progress-bar-bg"><div class="progress-fill" style="width: 100%"></div></div>
+            <span class="progress-label">10 / 10 Completed</span>
+          </div>
+          <button class="btn-primary-purple" (click)="startCustomQuiz(generatedTopicTitle)">Retake Quiz</button>
+        </div>
+      </div>
+
+      <div class="panel-card performance-chart-box">
+        <h3>Performance Overview</h3>
+        <div class="chart-flex-wrap">
+          <div class="donut-chart-container">
+            <div class="donut-center"><span class="donut-val">{{ averageScore }}%</span><span class="donut-lbl">Avg Score</span></div>
+          </div>
+          <div class="chart-legend-list">
+            <div class="legend-item"><span class="dot purple"></span> Correct <span>78%</span></div>
+            <div class="legend-item"><span class="dot orange"></span> Incorrect <span>17%</span></div>
+            <div class="legend-item"><span class="dot teal"></span> Skipped <span>5%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="split-row-grid bottom-margin">
+      <div class="panel-card table-panel">
+        <h3>Recent Quizzes</h3>
+        <table class="custom-data-table">
+          <thead>
+            <tr><th>Quiz Title</th><th>Score</th><th>Date</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>{{ generatedTopicTitle }}</strong></td>
+              <td><span class="score-ring">{{ accumulatedScore * 10 }}%</span></td>
+              <td>Just Now</td>
+              <td><button class="play-row-btn" (click)="startCustomQuiz(generatedTopicTitle)">▶</button></td>
+            </tr>
+            <tr *ngFor="let quiz of recentQuizzes">
+              <td><strong>{{ quiz.title }}</strong></td>
+              <td><span class="score-ring">{{ quiz.score }}%</span></td>
+              <td>{{ quiz.date }}</td>
+              <td><button class="play-row-btn" (click)="startCustomQuiz(quiz.title)">▶</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-card stack-panel">
+        <h3>Recommended Quizzes</h3>
+        <div class="recommendations-stack-wrapper">
+          <div class="rec-row-item" *ngFor="let rec of recommendedQuizzes">
+            <div class="rec-icon-thumb"></div>
+            <div class="rec-info-col">
+              <h4>{{ rec.title }}</h4>
+              <span class="rec-meta-tags">{{ rec.category }} • {{ rec.qCount }} Questions</span>
+            </div>
+            <button class="btn-start-quiz" (click)="startCustomQuiz(rec.title)">Start ➔</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="currentView === 'arena'" class="active-quiz-workspace fade-in">
+    <div class="workspace-header-bar">
+      <button class="back-dashboard-btn" (click)="exitQuizArena()">⇠ Back</button>
+      <h2>Practice Arena: <span class="highlight-text">{{ generatedTopicTitle }}</span></h2>
+      <span class="question-counter-badge">Question {{ currentQuestionIndex + 1 }} of 10</span>
+    </div>
+
+    <div *ngIf="isGenerating" class="quiz-skeleton-loader">Loading quiz framework...</div>
+
+    <div *ngIf="!isGenerating && questionsDeck.length > 0" class="quiz-question-card">
+      <h3 class="active-question-text">{{ questionsDeck[currentQuestionIndex].question }}</h3>
+
+      <div class="options-grid-layout">
+        <button 
+          *ngFor="let option of questionsDeck[currentQuestionIndex].options; let i = index"
+          (click)="evaluateAnswerSelection(i)"
+          [class.selected]="selectedAnswerIndex === i"
+          [class.correct-highlight]="selectedAnswerIndex !== null && i === questionsDeck[currentQuestionIndex].correctIndex"
+          [class.incorrect-highlight]="selectedAnswerIndex === i && i !== questionsDeck[currentQuestionIndex].correctIndex"
+          [disabled]="selectedAnswerIndex !== null"
+          class="workspace-option-btn"
+        >
+          <span class="option-prefix-tag">{{ getLetterPrefix(i) }}</span>
+          <span class="option-main-text">{{ option }}</span>
+        </button>
+      </div>
+
+      <div class="quiz-navigation-footer">
+        <button (click)="advanceToNextQuestion()" [disabled]="selectedAnswerIndex === null" class="next-step-btn">
+          {{ currentQuestionIndex === 9 ? 'Complete Evaluation' : 'Next Question' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,24 @@
+# Python virtual environments
+.venv/
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+# Local SQLite databases
+*.db
+
+# Backend runtime files
+backend/.env
+
+# Node and Angular files
+**/node_modules/
+**/dist/
+**/.angular/
+**/tmp/
+**/out-tsc/
+**/.sass-cache/
+
+# System / IDE settings
+.vscode/
+.DS_Store
+Thumbs.db

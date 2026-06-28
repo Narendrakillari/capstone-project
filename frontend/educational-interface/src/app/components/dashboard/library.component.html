@@ -1,0 +1,60 @@
+<div class="library-container fade-in">
+  <div class="library-header-block">
+    <div class="header-titles">
+      <h1>My Resource Library</h1>
+      <p class="subtitle">Search, filter, and launch your generated study workspaces</p>
+    </div>
+    <div class="search-bar-inline">
+      <input type="text" [(ngModel)]="searchQuery" placeholder="Search topics, keywords..." />
+    </div>
+  </div>
+
+  <div class="filter-tabs-row">
+    <button 
+      *ngFor="let cat of categories" 
+      (click)="selectCategory(cat)" 
+      [class.active]="selectedCategory === cat" 
+      class="filter-tab"
+    >
+      {{ cat }}
+    </button>
+  </div>
+
+  <div class="courses-grid">
+    <div *ngFor="let item of getFilteredItems()" class="course-card">
+      <div class="course-header">
+        <span class="category-badge" [ngClass]="item.category.toLowerCase()">{{ item.category }}</span>
+        <span class="grade-badge">{{ item.grade }}</span>
+      </div>
+      
+      <h3 class="course-title">{{ item.title }}</h3>
+      <p class="course-description">{{ item.description }}</p>
+
+      <div class="course-progress-section">
+        <div class="progress-info">
+          <span class="progress-lbl">Progress</span>
+          <span class="progress-val">{{ item.progress }}%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-fill" [style.width.%]="item.progress"></div>
+        </div>
+      </div>
+
+      <div class="course-footer">
+        <div class="meta-info">
+          <span>📚 {{ item.lessonsCount }} Lessons</span>
+          <span>⏱️ {{ item.duration }}</span>
+        </div>
+        <button (click)="launchWorkspace(item.title)" class="btn-launch">
+          Launch Workspace ➔
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="getFilteredItems().length === 0" class="empty-library">
+    <div class="empty-icon">📂</div>
+    <h3>No resources found</h3>
+    <p>Try refining your search query or choosing another category.</p>
+  </div>
+</div>

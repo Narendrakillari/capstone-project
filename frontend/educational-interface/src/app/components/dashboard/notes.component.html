@@ -1,0 +1,79 @@
+<div class="notes-dashboard-matrix fade-in">
+  <!-- Left Side: Notes list -->
+  <aside class="notes-sidebar">
+    <div class="notes-sidebar-header">
+      <h3>Study Notes</h3>
+      <button (click)="createNewNote()" class="btn-create-note">+ New Note</button>
+    </div>
+    
+    <div class="notes-list-scroll">
+      <div 
+        *ngFor="let note of notesList" 
+        (click)="loadNote(note.id)"
+        [class.active]="selectedNoteId === note.id"
+        class="note-sidebar-item"
+      >
+        <div class="note-item-meta">
+          <span class="note-category">{{ note.category }}</span>
+          <span class="note-time">{{ note.lastUpdated }}</span>
+        </div>
+        <h4 class="note-item-title">{{ note.title || 'Untitled Note' }}</h4>
+        <button (click)="deleteNote(note.id, $event)" class="btn-delete-icon" title="Delete Note">✕</button>
+      </div>
+
+      <div *ngIf="notesList.length === 0" class="empty-notes-sidebar">
+        No notes yet. Click "+ New Note" to start.
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Side: Active note editor -->
+  <main class="note-editor-pane">
+    <ng-container *ngIf="selectedNoteId !== -1; else emptyState">
+      <div class="editor-header">
+        <div class="title-edit-wrap">
+          <input 
+            *ngIf="isEditing" 
+            type="text" 
+            [(ngModel)]="activeNoteTitle" 
+            class="note-title-input" 
+            placeholder="Note Title"
+          />
+          <h2 *ngIf="!isEditing" class="note-title-display">{{ activeNoteTitle }}</h2>
+        </div>
+        
+        <div class="editor-actions">
+          <button *ngIf="!isEditing" (click)="startEditing()" class="btn-edit">✏️ Edit</button>
+          <button *ngIf="isEditing" (click)="saveNote()" class="btn-save">💾 Save Note</button>
+          <button (click)="launchWorkspace(activeNoteTitle)" class="btn-launch-ws">🚀 Launch Workspace</button>
+        </div>
+      </div>
+
+      <div class="editor-body">
+        <textarea 
+          *ngIf="isEditing" 
+          [(ngModel)]="activeNoteContent" 
+          class="note-textarea"
+          placeholder="Write your Markdown / notes here..."
+        ></textarea>
+        
+        <div *ngIf="!isEditing" class="note-content-preview">
+          <pre>{{ activeNoteContent }}</pre>
+        </div>
+      </div>
+    </ng-container>
+
+    <ng-template #emptyState>
+      <div class="empty-editor-state">
+        <div class="empty-notes-icon">📝</div>
+        <h3>No Note Selected</h3>
+        <p>Choose an existing note from the sidebar or click "+ New Note" to create a new one.</p>
+      </div>
+    </ng-template>
+  </main>
+
+  <!-- Local Toast Notification -->
+  <div *ngIf="toastMessage" class="toast-popup">
+    {{ toastMessage }}
+  </div>
+</div>

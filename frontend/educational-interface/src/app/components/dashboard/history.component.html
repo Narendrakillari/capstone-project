@@ -1,0 +1,56 @@
+<div class="history-dashboard-matrix fade-in">
+  <div class="history-header-block">
+    <div class="header-titles">
+      <h1>Learning History</h1>
+      <p class="subtitle">A detailed timeline of your generated topics, quizzes, and notes</p>
+    </div>
+    <button *ngIf="historyItems.length > 0" (click)="clearHistory()" class="btn-clear-history">
+      🗑️ Clear History
+    </button>
+  </div>
+
+  <div class="filter-tabs-row">
+    <button 
+      *ngFor="let type of ['All', 'Workspace', 'Quiz', 'Note']" 
+      (click)="filterHistory(type)" 
+      [class.active]="selectedType === type" 
+      class="filter-tab"
+    >
+      {{ type === 'All' ? 'Show All' : type + 's' }}
+    </button>
+  </div>
+
+  <div class="timeline-container">
+    <div *ngFor="let item of getFilteredHistory(); let last = last" class="timeline-item">
+      <!-- Left: Timeline Line and bubble icon -->
+      <div class="timeline-badge-column">
+        <div class="timeline-icon-bubble" [ngClass]="item.type">
+          {{ getIcon(item.type) }}
+        </div>
+        <div *ngIf="!last" class="timeline-connector-line"></div>
+      </div>
+
+      <!-- Right: Detailed Info Card -->
+      <div class="timeline-content-card">
+        <div class="card-top-row">
+          <span class="category-tag" [ngClass]="item.category.toLowerCase()">{{ item.category }}</span>
+          <span class="timestamp-lbl">{{ item.timestamp }}</span>
+        </div>
+
+        <h3 class="timeline-title">{{ item.title }}</h3>
+        <p class="timeline-desc">{{ item.description }}</p>
+
+        <div class="card-footer-row">
+          <span *ngIf="item.extraMeta" class="extra-meta-badge">{{ item.extraMeta }}</span>
+          <button (click)="launchTopic(item.title)" class="btn-revisit">Revisit Topic ➔</button>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="getFilteredHistory().length === 0" class="empty-history">
+      <div class="empty-icon">⏳</div>
+      <h3>Timeline is empty</h3>
+      <p>Your learning activities will show up here as you generate workspaces and take quizzes.</p>
+    </div>
+  </div>
+</div>
