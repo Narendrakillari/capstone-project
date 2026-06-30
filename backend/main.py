@@ -1,12 +1,16 @@
 import os
 import json
 import jwt
-import datetime
 import asyncio
+import bcrypt
+from datetime import datetime, timezone, timedelta
+from typing import List
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Depends
+
+from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig
@@ -15,7 +19,38 @@ from sqlalchemy import select
 
 # Import database helpers and models
 from database import get_db, engine, Base, QuizResult, WorkspaceCache, User
-import bcrypt
+
+# Import video generation function from agent_engine
+from agent_engine import process_educational_video
+
+# Slowapi rate limiting imports
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# Load environment variables from .env file
+load_dotenv()
+
+# 🔒 SECURITY SYSTEM CONFIGURATIONS
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("Configuration error: SECRET_KEY environment variable is not set. Please set it in your environment or .env file.")
+
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+TOKEN_EXPIRATION_HOURS = int(os.getenv("TOKEN_EXPIRATION_HOURS", "24"))
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Configurable Rate Limits
+LIMIT_WORKSPACE = os.getenv("LIMIT_WORKSPACE", "10/minute")
+LIMIT_QUIZ = os.getenv("LIMIT_QUIZ", "15/minute")
+LIMIT_ASK = os.getenv("LIMIT_ASK", "20/minute")
+LIMIT_LOGIN = os.getenv("LIMIT_LOGIN", "5/minute")
+LIMIT_REGISTER = os.getenv("LIMIT_REGISTER", "3/minute")
+
+# Slowapi Rate Limiter Setup
+limiter = Limiter(key_func=get_remote_address)
+
+security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
@@ -31,35 +66,74 @@ def get_password_hash(password: str) -> str:
     hashed = bcrypt.hashpw(pwd_bytes, salt)
     return hashed.decode('utf-8')
 
-
-
-# Load environment variables from .env file
-load_dotenv()
-
-# 🔒 SECURITY SYSTEM CONFIGURATIONS
-SECRET_KEY = "ANTIGRAVITY_PROPULSION_VECTOR_SECRET" # Keep this safe!
-ALGORITHM = "HS256"
-TOKEN_EXPIRATION_HOURS = 24
+async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: AsyncSession = Depends(get_db)) -> User:
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid token: missing subject."
+            )
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail="Token has expired. Please log in again."
+        )
+    except jwt.InvalidTokenError as e:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid token: {str(e)}"
+        )
+        
+    stmt = select(User).filter(User.username == username.strip().lower())
+    result = await db.execute(stmt)
+    user = result.scalars().first()
+    if user is None:
+        raise HTTPException(
+            status_code=401,
+            detail="User not found."
+        )
+    return user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not GEMINI_API_KEY:
+        print("[WARNING] GEMINI_API_KEY is not set in the environment or .env file. AI-driven workspace and quiz generation will fail!")
     # Establish SQLite schema on startup automatically
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
 
 app = FastAPI(title="VisualLearn AI Backend Engine", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Configure CORS so your Angular frontend (localhost:4200) can securely communicate with it
+# CORS configuration
+# To configure CORS for production (e.g. on Render or Railway), set the ALLOWED_ORIGINS environment variable
+# on the platform's environment settings dashboard.
+# Example: ALLOWED_ORIGINS=https://visuallearn-ai.onrender.com,http://localhost:4200
+ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS")
+DEBUG_MODE = os.getenv("DEBUG", "false").lower() == "true"
+
+if DEBUG_MODE:
+    print("[WARNING] CORS is running in DEBUG mode. Allowing all origins.")
+    origins = ["*"]
+else:
+    if ALLOWED_ORIGINS_ENV:
+        origins = [o.strip() for o in ALLOWED_ORIGINS_ENV.split(",") if o.strip()]
+    else:
+        origins = ["http://localhost:4200"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:4200"],
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
-# Mount the static folder so the frontend can pull looping video backgrounds
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 static_dir = os.path.join(BASE_DIR, "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
@@ -107,12 +181,54 @@ VIDEO_LOOP_MAP = {
     "default": "static/video_loops/default_bg.mp4"
 }
 
+def get_video_url(tag: str, base_dir: str) -> str:
+    rel_path = VIDEO_LOOP_MAP.get(tag.lower(), VIDEO_LOOP_MAP["default"])
+    abs_path = os.path.join(base_dir, rel_path)
+    if os.path.exists(abs_path):
+        return f"http://localhost:8000/{rel_path}"
+    else:
+        return f"http://localhost:8000/{VIDEO_LOOP_MAP['default']}"
+
+async def calculate_gamification(username: str, db: AsyncSession) -> dict:
+    stmt = select(QuizResult.correct_count).filter(QuizResult.username == username)
+    res = await db.execute(stmt)
+    correct_counts = res.scalars().all()
+    total_xp = sum(correct_counts) * 50
+    
+    stmt_dates = select(QuizResult.timestamp).filter(QuizResult.username == username).order_by(QuizResult.timestamp.desc())
+    res_dates = await db.execute(stmt_dates)
+    timestamps = res_dates.scalars().all()
+    
+    if not timestamps:
+        return {"levelXP": 0, "streakDays": 0}
+        
+    unique_dates = sorted(list({t.date() for t in timestamps}), reverse=True)
+    
+    today = datetime.now(timezone.utc).date()
+    yesterday = today - timedelta(days=1)
+    
+    if unique_dates[0] != today and unique_dates[0] != yesterday:
+        return {"levelXP": total_xp, "streakDays": 0}
+        
+    streak = 1
+    current_date = unique_dates[0]
+    
+    for next_date in unique_dates[1:]:
+        if current_date - next_date == timedelta(days=1):
+            streak += 1
+            current_date = next_date
+        elif current_date - next_date > timedelta(days=1):
+            break
+            
+    return {"levelXP": total_xp, "streakDays": streak}
+
 @app.post("/api/generate-workspace")
-async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depends(get_db)):
-    if not request.prompt.strip():
+@limiter.limit(LIMIT_WORKSPACE)
+async def generate_workspace(request: Request, payload: GenerationRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if not payload.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt query cannot be empty.")
     
-    clean_prompt = request.prompt.strip().lower()
+    clean_prompt = payload.prompt.strip().lower()
     
     # 🔍 Try to serve from SQLite WorkspaceCache first
     try:
@@ -123,6 +239,7 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
         if cached:
             print(f"[CACHE HIT] Loaded workspace from SQLite database cache for prompt: '{clean_prompt}'")
             quiz_dict = json.loads(cached.quiz_data)
+            game_stats = await calculate_gamification(current_user.username, db)
             return {
                 "topic": cached.topic,
                 "subject": cached.subject,
@@ -135,22 +252,23 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
                 "relatedTopics": quiz_dict.get("relatedTopics", ["Overview", "Fundamentals", "Applications"]),
                 "videoSummary": quiz_dict.get("videoSummary", ""),
                 "recommendedLessons": quiz_dict.get("recommendedLessons", []),
-                "streakDays": quiz_dict.get("streakDays", 13),
-                "levelXP": quiz_dict.get("levelXP", 1350)
+                "streakDays": game_stats["streakDays"],
+                "levelXP": game_stats["levelXP"]
             }
     except Exception as cache_err:
         print(f"[WARNING] Cache lookup failed: {str(cache_err)}")
 
     config = LocalAgentConfig(
         system_instructions=SYSTEM_INSTRUCTIONS,
-        capabilities=CapabilitiesConfig(enabled_tools=[])
+        capabilities=CapabilitiesConfig(enabled_tools=[]),
+        api_key=GEMINI_API_KEY
     )
     output_payload = None
 
     try:
         async def call_ai():
             async with Agent(config) as orchestrator:
-                ai_prompt = f"Create a comprehensive educational workspace profile block for the topic: '{request.prompt}'."
+                ai_prompt = f"Create a comprehensive educational workspace profile block for the topic: '{payload.prompt}'."
                 response = await orchestrator.chat(ai_prompt)
                 return await response.text()
 
@@ -159,37 +277,34 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
         data = json.loads(clean_json)
             
         tag = data.get("videoLoopTag", "default").lower()
-        video_path = VIDEO_LOOP_MAP.get(tag, VIDEO_LOOP_MAP["default"])
+        video_url = get_video_url(tag, BASE_DIR)
         
         output_payload = {
-            "topic": data.get("topic", request.prompt.title()),
+            "topic": data.get("topic", payload.prompt.title()),
             "subject": data.get("subject", "General Science"),
             "grade": data.get("grade", "Class 10"),
-            "videoUrl": f"http://localhost:8000/{video_path}",  # 👈 Fixed port to 8000
+            "videoUrl": video_url,
             "keyPoints": data.get("keyPoints", []),
             "quizQuestion": data.get("quizQuestion"),
             "quizOptions": data.get("quizOptions", []),
             "correctAnswerIndex": data.get("correctAnswerIndex", -1),
-            "relatedTopics": data.get("relatedTopics", ["Overview", "Fundamentals", "Applications"]), # 👈 Added to match frontend loop
-            "videoSummary": data.get("videoSummary", f"This video workspace covers the foundational mechanics, processes, and applications of {request.prompt.title()}."),
+            "relatedTopics": data.get("relatedTopics", ["Overview", "Fundamentals", "Applications"]),
+            "videoSummary": data.get("videoSummary", f"This video workspace covers the foundational mechanics, processes, and applications of {payload.prompt.title()}."),
             "recommendedLessons": data.get("recommendedLessons", [
-                {"topic": f"Introduction to {request.prompt.title()}", "subject": "Science", "grade": "Class 10", "duration": "5 min"},
-                {"topic": f"Advanced {request.prompt.title()}", "subject": "Science", "grade": "Class 10", "duration": "9 min"}
-            ]),
-            "streakDays": 13,
-            "levelXP": 1350
+                {"topic": f"Introduction to {payload.prompt.title()}", "subject": "Science", "grade": "Class 10", "duration": "5 min"},
+                {"topic": f"Advanced {payload.prompt.title()}", "subject": "Science", "grade": "Class 10", "duration": "9 min"}
+            ])
         }
 
     except Exception as e:
         # ✨ FALLBACK LOGIC: Triggers automatically if 429, 503, or timeouts strike
         print(f"[WARNING] API Quota Exhausted or Engine Failure ({str(e)}). Deploying smart local fallback workspace...")
         
-        # Simple dynamic mapper to make the fallback feel customized to the query
-        topic_title = request.prompt.title()
+        topic_title = payload.prompt.title()
         clean_topic = topic_title.lower()
 
         if "solar" in clean_topic or "space" in clean_topic or "universe" in clean_topic or "galaxy" in clean_topic or "astronomy" in clean_topic:
-            youtube_id = "zkCKx3fpk4Q"  # NASA Space Visual Loop [4K]
+            youtube_id = "zkCKx3fpk4Q"
             subject = "Astronomy & Cosmology"
             key_points = [
                 "Space is extremely vast, containing billions of galaxies, stars, and planetary systems.",
@@ -209,7 +324,7 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
             video_url = f"https://www.youtube.com/embed/{youtube_id}?autoplay=1&mute=1&loop=1&playlist={youtube_id}&controls=0&modestbranding=1&rel=0"
 
         elif "photosynthesis" in clean_topic or "chlorophyll" in clean_topic or "plant" in clean_topic or "leaf" in clean_topic:
-            youtube_id = "D1Ymc311XS8"  # Photosynthesis - Light Reactions and Calvin Cycle
+            youtube_id = "D1Ymc311XS8"
             subject = "Plant Biology"
             key_points = [
                 "Photosynthesis is the process by which green plants convert solar energy into chemical energy.",
@@ -229,7 +344,7 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
             video_url = f"https://www.youtube.com/embed/{youtube_id}?autoplay=1&mute=1&loop=1&playlist={youtube_id}&controls=0&modestbranding=1&rel=0"
 
         elif "immune" in clean_topic or "biology" in clean_topic or "cell" in clean_topic or "body" in clean_topic or "respiration" in clean_topic:
-            youtube_id = "lXfEK8G8CUI"  # How The Immune System ACTUALLY Works - Kurzgesagt
+            youtube_id = "lXfEK8G8CUI"
             subject = "Life Sciences"
             key_points = [
                 "The immune system protects the body from harmful pathogens like bacteria and viruses.",
@@ -249,7 +364,7 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
             video_url = f"https://www.youtube.com/embed/{youtube_id}?autoplay=1&mute=1&loop=1&playlist={youtube_id}&controls=0&modestbranding=1&rel=0"
 
         elif "quantum" in clean_topic or "physics" in clean_topic or "atom" in clean_topic or "gravity" in clean_topic or "particle" in clean_topic:
-            youtube_id = "p9pPjASnnxw"  # Quantum Mechanics Explained
+            youtube_id = "p9pPjASnnxw"
             subject = "Theoretical Physics"
             key_points = [
                 "Quantum mechanics is the study of matter and energy at the scale of atoms and subatomic particles.",
@@ -269,7 +384,7 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
             video_url = f"https://www.youtube.com/embed/{youtube_id}?autoplay=1&mute=1&loop=1&playlist={youtube_id}&controls=0&modestbranding=1&rel=0"
 
         elif "antigravity" in clean_topic or "propulsion" in clean_topic or "rocket" in clean_topic or "spacecraft" in clean_topic:
-            youtube_id = "bC9t2tH6rP0"  # Crazy Engineering: Ion Propulsion - NASA JPL
+            youtube_id = "bC9t2tH6rP0"
             subject = "Aerospace Engineering"
             key_points = [
                 "Propulsion systems generate thrust to move spacecraft through the vacuum of space.",
@@ -289,7 +404,6 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
             video_url = f"https://www.youtube.com/embed/{youtube_id}?autoplay=1&mute=1&loop=1&playlist={youtube_id}&controls=0&modestbranding=1&rel=0"
 
         else:
-            # 🔮 INFINITE AUTOMATED FALLBACK: Executes for any custom unknown topic query text
             subject = "General Science"
             key_points = [
                 f"Science is a systematic approach to understanding the natural world through observation of {topic_title}.",
@@ -306,7 +420,6 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
                 {"topic": f"Designing {topic_title} Experiments", "subject": "Science", "grade": "Level 02", "duration": "10 min"},
                 {"topic": f"Advanced {topic_title} Reasoning", "subject": "Science", "grade": "Level 02", "duration": "12 min"}
             ]
-            # Formats spaces cleanly into HTTP query strings to search YouTube dynamically
             url_search_query = topic_title.replace(" ", "+") + "+educational+lesson"
             video_url = f"https://www.youtube.com/embed?listType=search&list={url_search_query}&autoplay=1&mute=1&controls=1&modestbranding=1&rel=0"
 
@@ -321,9 +434,7 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
             "correctAnswerIndex": correct_index,
             "relatedTopics": [f"{topic_title} Basics", "Advanced Analysis", "Case Studies"],
             "videoSummary": video_summary,
-            "recommendedLessons": lessons,
-            "streakDays": 13,
-            "levelXP": 1350
+            "recommendedLessons": lessons
         }
 
     # 💾 Cache the newly generated/fallback workspace in SQLite database
@@ -342,9 +453,7 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
                     "correctAnswerIndex": output_payload["correctAnswerIndex"],
                     "relatedTopics": output_payload["relatedTopics"],
                     "videoSummary": output_payload["videoSummary"],
-                    "recommendedLessons": output_payload["recommendedLessons"],
-                    "streakDays": output_payload["streakDays"],
-                    "levelXP": output_payload["levelXP"]
+                    "recommendedLessons": output_payload["recommendedLessons"]
                 })
             )
             db.add(new_cache)
@@ -354,25 +463,104 @@ async def generate_workspace(request: GenerationRequest, db: AsyncSession = Depe
             await db.rollback()
             print(f"[WARNING] Failed to cache generated workspace: {str(cache_store_err)}")
 
-    return output_payload
+    game_stats = await calculate_gamification(current_user.username, db)
+    return {
+        **output_payload,
+        "streakDays": game_stats["streakDays"],
+        "levelXP": game_stats["levelXP"]
+    }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+# FALLBACK_QUIZ_BANK containing 10 educational questions per topic
+FALLBACK_QUIZ_BANK = {
+    "photosynthesis": [
+        {"question": "What is the primary function of chlorophyll in photosynthesis?", "options": ["Absorb light energy", "Produce carbon dioxide", "Store glucose", "Release water"], "correctIndex": 0},
+        {"question": "Where do the light-dependent reactions of photosynthesis occur?", "options": ["Stroma", "Thylakoid membrane", "Mitochondria", "Cytoplasm"], "correctIndex": 1},
+        {"question": "Which of the following is a product of the light reactions?", "options": ["Glucose", "Carbon dioxide", "Oxygen", "Water"], "correctIndex": 2},
+        {"question": "What happens in the stroma during the Calvin cycle?", "options": ["Carbon fixation and glucose production", "Splitting of water molecules", "Release of oxygen gas", "ATP synthesis"], "correctIndex": 0},
+        {"question": "What are the starting materials for photosynthesis?", "options": ["Glucose and Oxygen", "Carbon Dioxide, Water, and Light", "Nitrogen and Carbon Dioxide", "Oxygen and Water"], "correctIndex": 1},
+        {"question": "Which molecule splits to release oxygen gas during photosynthesis?", "options": ["Water", "Carbon dioxide", "Glucose", "ATP"], "correctIndex": 0},
+        {"question": "What is the main energy-carrying molecule produced in light reactions?", "options": ["Calvin", "ATP and NADPH", "Stroma", "Glucose"], "correctIndex": 1},
+        {"question": "Which pigment absorbs blue and red light best?", "options": ["Chlorophyll a", "Carotene", "Xanthophyll", "Anthocyanin"], "correctIndex": 0},
+        {"question": "Which factor does NOT directly affect the rate of photosynthesis?", "options": ["Light intensity", "Temperature", "Carbon dioxide level", "Nitrogen level"], "correctIndex": 3},
+        {"question": "In what form is sugar transported in plants?", "options": ["Sucrose", "Glucose", "Starch", "Glycogen"], "correctIndex": 0}
+    ],
+    "quantum mechanics": [
+        {"question": "What principle states that you cannot simultaneously know a particle's exact position and momentum?", "options": ["Schrodinger equation", "Heisenberg Uncertainty Principle", "Planck relation", "Einstein relativity"], "correctIndex": 1},
+        {"question": "What is a single packet of light energy called?", "options": ["Electron", "Photon", "Proton", "Neutron"], "correctIndex": 1},
+        {"question": "Which phenomenon refers to particles behaving like waves and vice versa?", "options": ["Wave-particle duality", "Quantum superposition", "Quantum entanglement", "Planck constant"], "correctIndex": 0},
+        {"question": "What is the basic unit of quantum information called?", "options": ["Bit", "Qubit", "Byte", "Quantum dot"], "correctIndex": 1},
+        {"question": "What state exists when a quantum system is in multiple states at once?", "options": ["Superposition", "Entanglement", "Coherence", "Superconductivity"], "correctIndex": 0},
+        {"question": "Which term describes particles having coupled states regardless of distance?", "options": ["Superposition", "Entanglement", "Tunneling", "Decoherence"], "correctIndex": 1},
+        {"question": "Who introduced the quantum theory with his constant 'h'?", "options": ["Max Planck", "Albert Einstein", "Niels Bohr", "Erwin Schrodinger"], "correctIndex": 0},
+        {"question": "What describes the probability amplitude of a quantum state?", "options": ["Wave function", "Momentum vector", "Spin state", "Tunneling barrier"], "correctIndex": 0},
+        {"question": "What occurs when a quantum wave function is measured?", "options": ["Wave function collapse", "Entanglement", "Superposition", "Superconductivity"], "correctIndex": 0},
+        {"question": "Which phenomenon allows particles to pass through potential barriers?", "options": ["Quantum tunneling", "Quantum entanglement", "Superposition", "Planck emission"], "correctIndex": 0}
+    ],
+    "space": [
+        {"question": "Which is the largest planet in our solar system?", "options": ["Saturn", "Jupiter", "Neptune", "Uranus"], "correctIndex": 1},
+        {"question": "What type of celestial object is the Sun?", "options": ["Planet", "Star", "Comet", "Nebula"], "correctIndex": 1},
+        {"question": "Which planet is known as the Red Planet?", "options": ["Venus", "Mars", "Mercury", "Jupiter"], "correctIndex": 1},
+        {"question": "What is the name of our galaxy?", "options": ["Andromeda", "Milky Way", "Triangulum", "Sombrero"], "correctIndex": 1},
+        {"question": "Which planet is closest to the Sun?", "options": ["Earth", "Mercury", "Venus", "Mars"], "correctIndex": 1},
+        {"question": "What force keeps planets in orbit around the Sun?", "options": ["Electromagnetic force", "Gravity", "Friction", "Centrifugal force"], "correctIndex": 1},
+        {"question": "Which planet is famous for its prominent rings?", "options": ["Saturn", "Jupiter", "Uranus", "Neptune"], "correctIndex": 0},
+        {"question": "What is the hottest planet in our solar system?", "options": ["Mercury", "Venus", "Mars", "Jupiter"], "correctIndex": 1},
+        {"question": "How long does it take for Earth to orbit the Sun once?", "options": ["24 hours", "30 days", "365 days", "10 years"], "correctIndex": 2},
+        {"question": "What is the natural satellite of Earth?", "options": ["The Moon", "Sputnik", "Titan", "Ganymede"], "correctIndex": 0}
+    ],
+    "immune system": [
+        {"question": "Which blood cells are the primary defenders of the immune system?", "options": ["Red blood cells", "White blood cells", "Platelets", "Plasma"], "correctIndex": 1},
+        {"question": "What are proteins produced by B-cells that bind to antigens?", "options": ["Antibodies", "Pathogens", "Hormones", "Enzymes"], "correctIndex": 0},
+        {"question": "Which organ is responsible for filtering pathogens from the blood?", "options": ["Liver", "Spleen", "Kidney", "Lungs"], "correctIndex": 1},
+        {"question": "What type of immunity is acquired by vaccination?", "options": ["Active artificial immunity", "Passive natural immunity", "Innate immunity", "Inherent immunity"], "correctIndex": 0},
+        {"question": "Which cells destroy virally infected cells and tumor cells?", "options": ["Red blood cells", "Helper T-cells", "Killer T-cells / NK cells", "Plasma cells"], "correctIndex": 2},
+        {"question": "What is a harmless version of a pathogen used to stimulate immunity?", "options": ["Antigen", "Antibiotic", "Vaccine", "Toxin"], "correctIndex": 2},
+        {"question": "Which barrier serves as the first line of defense against pathogens?", "options": ["White blood cells", "The Skin", "Lymph nodes", "Antibodies"], "correctIndex": 1},
+        {"question": "What is the body's local response to tissue injury or infection?", "options": ["Fever", "Inflammation", "Lysis", "Superposition"], "correctIndex": 1},
+        {"question": "Which cells produce antibodies?", "options": ["T-cells", "B-cells", "Macrophages", "Red blood cells"], "correctIndex": 1},
+        {"question": "What term describes the immune system attacking the body's own tissues?", "options": ["Allergy", "Autoimmune disease", "Innate response", "Immunity collapse"], "correctIndex": 1}
+    ],
+    "cellular respiration": [
+        {"question": "Where in the cell does Glycolysis occur?", "options": ["Mitochondria", "Cytoplasm", "Nucleus", "Ribosome"], "correctIndex": 1},
+        {"question": "What is the primary starting sugar molecule for cellular respiration?", "options": ["Sucrose", "Glucose", "Starch", "Fructose"], "correctIndex": 1},
+        {"question": "Which stage of cellular respiration produces the most ATP?", "options": ["Glycolysis", "Krebs Cycle", "Electron Transport Chain", "Fermentation"], "correctIndex": 2},
+        {"question": "What gas is required for aerobic respiration to proceed?", "options": ["Carbon dioxide", "Oxygen", "Nitrogen", "Hydrogen"], "correctIndex": 1},
+        {"question": "What are the main products of cellular respiration?", "options": ["Glucose and Oxygen", "Carbon Dioxide, Water, and ATP", "Nitrogen and Carbon Dioxide", "Lactic Acid and Glucose"], "correctIndex": 1},
+        {"question": "Which mitochondrial structure holds the Electron Transport Chain?", "options": ["Outer membrane", "Inner membrane / Cristae", "Matrix", "Intermembrane space"], "correctIndex": 1},
+        {"question": "What product is formed in muscles during anaerobic respiration?", "options": ["Lactic acid", "Ethanol", "Glucose", "Pyruvate"], "correctIndex": 0},
+        {"question": "Which coenzyme acts as an electron carrier in respiration?", "options": ["ATP", "NADH", "Chlorophyll", "DNA"], "correctIndex": 1},
+        {"question": "What cycle processes pyruvate to produce carbon dioxide and electron carriers?", "options": ["Calvin cycle", "Krebs cycle", "Urea cycle", "Glycolysis"], "correctIndex": 1},
+        {"question": "What is the net ATP yield from one molecule of glucose in glycolysis?", "options": ["2 ATP", "4 ATP", "36 ATP", "38 ATP"], "correctIndex": 0}
+    ]
+}
 
+GENERAL_SCIENCE_FALLBACK = [
+    {"question": "What is the chemical symbol for water?", "options": ["O2", "CO2", "H2O", "HO2"], "correctIndex": 2},
+    {"question": "Which force pulls objects toward the center of the Earth?", "options": ["Magnetism", "Gravity", "Friction", "Buoyancy"], "correctIndex": 1},
+    {"question": "What is the closest star to Earth?", "options": ["Sirius", "Proxima Centauri", "The Sun", "Betelgeuse"], "correctIndex": 2},
+    {"question": "Which gas do humans inhale to survive?", "options": ["Carbon Dioxide", "Nitrogen", "Oxygen", "Argon"], "correctIndex": 2},
+    {"question": "What is the primary source of energy for Earth's organisms?", "options": ["The Moon", "The Sun", "Geothermal heat", "Wind"], "correctIndex": 1},
+    {"question": "How many states of matter are commonly observed?", "options": ["One", "Two", "Three", "Four"], "correctIndex": 2},
+    {"question": "What organ acts as the pump of the human circulatory system?", "options": ["Lungs", "Brain", "Heart", "Liver"], "correctIndex": 2},
+    {"question": "Which instrument is used to measure temperature?", "options": ["Barometer", "Thermometer", "Hygrometer", "Anemometer"], "correctIndex": 1},
+    {"question": "What is the freezing point of water in Celsius?", "options": ["-10°C", "0°C", "32°C", "100°C"], "correctIndex": 1},
+    {"question": "Which planet is famous for being the third from the Sun?", "options": ["Venus", "Mars", "Earth", "Mercury"], "correctIndex": 2}
+]
 
-    from pydantic import BaseModel
-from typing import List
-from fastapi import HTTPException
+def get_generic_quiz(topic: str) -> list:
+    topic_lower = topic.lower()
+    for key, questions in FALLBACK_QUIZ_BANK.items():
+        if key in topic_lower or (key == "space" and "solar" in topic_lower):
+            return questions
+    return GENERAL_SCIENCE_FALLBACK
 
-# 1. Define the incoming request schema shape
 class QuizRequest(BaseModel):
     topic: str
 
-# 2. Add the dynamic quiz generation service endpoint
 @app.post("/api/generate-quiz")
-async def generate_quiz(request: QuizRequest):
-    topic = request.topic.strip()
+@limiter.limit(LIMIT_QUIZ)
+async def generate_quiz(request: Request, payload: QuizRequest, current_user: User = Depends(get_current_user)):
+    topic = payload.topic.strip()
     if not topic:
         raise HTTPException(status_code=400, detail="Topic field cannot be empty.")
         
@@ -396,10 +584,11 @@ async def generate_quiz(request: QuizRequest):
             "}"
         )
         
+        # The google-antigravity library uses "gemini-2.5-flash" by default (or similar library default)
         config = LocalAgentConfig(
             system_instructions=quiz_instructions,
-            model="gemini-3.5-flash",
-            capabilities=CapabilitiesConfig(enabled_tools=[])
+            capabilities=CapabilitiesConfig(enabled_tools=[]),
+            api_key=GEMINI_API_KEY
         )
         
         async def call_ai():
@@ -414,37 +603,11 @@ async def generate_quiz(request: QuizRequest):
         return data
 
     except Exception as e:
-        # SAFETY VALVE INTERCEPTOR: Fires instantly if the 503 engine error hits
         print(f"[WARNING] Quiz Engine Throttled ({str(e)}). Deploying robust 10-question fallback deck...")
-    
-        # Clean structured return schema holding exactly 10 questions
+        fallback_questions = get_generic_quiz(topic)
         return {
             "topic": topic.title(),
-            "questions": [
-                {
-                    "question": f"What represents the primary fundamental rule or baseline principle governing {topic}?",
-                    "options": ["Standard Core Isolation Model", "Differential State Equilibrium", "System Variance Constraint", "External Static Bounds"],
-                    "correctIndex": 0
-                },
-                {
-                    "question": f"Which component is most critically associated with optimization loops in {topic}?",
-                    "options": ["Input Modulation Array", "Feedback Interceptor Matrix", "Downstream Processing Nodes", "Boundary Evaluation Units"],
-                    "correctIndex": 1
-                },
-                {
-                    "question": f"During full execution sequences of {topic}, what represents the primary bottleneck?",
-                    "options": ["Memory Throughput Allocation", "Network Pipeline Latency", "Computational Thread Contention", "Data Serialization Delay"],
-                    "correctIndex": 2
-                },
-                # Generates questions 4 to 10 uniformly to complete the 10-question matrix deck array
-                *[
-                    {
-                        "question": f"Advanced verification module checkpoint question number {i} regarding {topic} mechanics?",
-                        "options": [f"Optimized Variant {i}A", f"System Control Model {i}B", f"Standard Baseline Parameter {i}C", f"Secondary Structural Path {i}D"],
-                        "correctIndex": (i % 4)
-                    } for i in range(4, 11)
-                ]
-            ]
+            "questions": fallback_questions
         }
 
 # Ask Anything Q&A Request schema
@@ -455,23 +618,24 @@ class AskQuestionRequest(BaseModel):
     question: str
 
 @app.post("/api/ask-question")
-async def ask_question(request: AskQuestionRequest):
+@limiter.limit(LIMIT_ASK)
+async def ask_question(request: Request, payload: AskQuestionRequest, current_user: User = Depends(get_current_user)):
     import base64
     try:
         # Decrypt (Base64 decode) parameters
-        topic = base64.b64decode(request.topic).decode('utf-8')
-        video_url = base64.b64decode(request.videoUrl).decode('utf-8')
-        video_summary = base64.b64decode(request.videoSummary).decode('utf-8')
+        topic = base64.b64decode(payload.topic).decode('utf-8')
+        video_url = base64.b64decode(payload.videoUrl).decode('utf-8')
+        video_summary = base64.b64decode(payload.videoSummary).decode('utf-8')
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to decrypt parameters: {str(e)}")
         
-    print(f"[QA] Decrypted Ask Anything request: topic='{topic}', question='{request.question}'")
-
+    print(f"[QA] Decrypted Ask Anything request: topic='{topic}', question='{payload.question}'")
+ 
     # If the question is simply asking to summarize the video, return the summary directly within seconds
-    clean_question = request.question.lower().strip()
+    clean_question = payload.question.lower().strip()
     if "summarize" in clean_question or "summary" in clean_question:
         return {"answer": f"Here is the AI video summary for '{topic}':\n\n{video_summary}"}
-
+ 
     try:
         # Try live agent Q&A first
         config = LocalAgentConfig(
@@ -479,7 +643,8 @@ async def ask_question(request: AskQuestionRequest):
                 "You are an expert AI teaching assistant for VisualLearn AI. "
                 "Answer the student's question accurately and concisely using the provided context."
             ),
-            capabilities=CapabilitiesConfig(enabled_tools=[])
+            capabilities=CapabilitiesConfig(enabled_tools=[]),
+            api_key=GEMINI_API_KEY
         )
         async def call_ai():
             async with Agent(config) as orchestrator:
@@ -487,12 +652,12 @@ async def ask_question(request: AskQuestionRequest):
                     f"Active Topic: {topic}\n"
                     f"Video Resource: {video_url}\n"
                     f"Video Summary Context: {video_summary}\n"
-                    f"Student Question: {request.question}\n\n"
+                    f"Student Question: {payload.question}\n\n"
                     f"Provide a helpful, educational response based on the summary."
                 )
                 response = await orchestrator.chat(prompt)
                 return await response.text()
-
+ 
         answer = await asyncio.wait_for(call_ai(), timeout=12.0)
         return {"answer": answer}
             
@@ -502,7 +667,7 @@ async def ask_question(request: AskQuestionRequest):
         
         # Simple local text extraction fallback based on summary content
         sentences = [s.strip() for s in video_summary.split('.') if s.strip()]
-        words = [w.lower() for w in request.question.split() if len(w) > 3]
+        words = [w.lower() for w in payload.question.split() if len(w) > 3]
         
         relevant_sentences = []
         for sentence in sentences:
@@ -515,6 +680,8 @@ async def ask_question(request: AskQuestionRequest):
                 f"• " + "\n• ".join(relevant_sentences) + f"\n\n"
                 f"This relates directly to your query about '{topic}'."
             )
+        else:
+            answer = f"I couldn't find specific context for your question about '{topic}'. Try rephrasing it."
         return {"answer": answer}
 
 # --- DB Persistence API endpoints ---
@@ -526,7 +693,12 @@ class QuizScoreRequest(BaseModel):
     correct_count: int
 
 @app.post("/api/save-quiz-score")
-async def save_quiz_score(request: QuizScoreRequest, db: AsyncSession = Depends(get_db)):
+async def save_quiz_score(request: QuizScoreRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if request.username.strip().lower() != current_user.username.strip().lower():
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: You are not authorized to save scores for another user."
+        )
     try:
         new_result = QuizResult(
             username=request.username,
@@ -543,7 +715,12 @@ async def save_quiz_score(request: QuizScoreRequest, db: AsyncSession = Depends(
         raise HTTPException(status_code=500, detail=f"Database persistence error: {str(e)}")
 
 @app.get("/api/user-stats")
-async def get_user_stats(username: str, db: AsyncSession = Depends(get_db)):
+async def get_user_stats(username: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if username.strip().lower() != current_user.username.strip().lower():
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: You are not authorized to view statistics for another user."
+        )
     try:
         # Query quiz results for the user, ordered by timestamp desc
         stmt = select(QuizResult).filter(QuizResult.username == username).order_by(QuizResult.timestamp.desc())
@@ -578,6 +755,68 @@ async def get_user_stats(username: str, db: AsyncSession = Depends(get_db)):
         print(f"[ERROR] Failed to aggregate user stats: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Database aggregation error: {str(e)}")
 
+@app.get("/api/user-stats/detailed")
+async def get_user_stats_detailed(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    try:
+        stmt = select(QuizResult).filter(QuizResult.username == current_user.username)
+        results = await db.execute(stmt)
+        quiz_list = results.scalars().all()
+
+        total_quizzes = len(quiz_list)
+        if total_quizzes > 0:
+            avg_score = sum(q.score for q in quiz_list) / total_quizzes
+            total_xp = sum(q.correct_count for q in quiz_list) * 50
+        else:
+            avg_score = 0.0
+            total_xp = 0
+
+        unique_topics = set(q.topic for q in quiz_list)
+        topics_explored = len(unique_topics)
+
+        breakdown = {}
+        for q in quiz_list:
+            breakdown[q.topic] = breakdown.get(q.topic, 0) + 1
+
+        return {
+            "total_quizzes": total_quizzes,
+            "average_score": round(avg_score, 1),
+            "total_xp": total_xp,
+            "topics_explored": topics_explored,
+            "subject_breakdown": breakdown
+        }
+    except Exception as e:
+        print(f"[ERROR] Failed to query detailed user stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Database aggregation error: {str(e)}")
+
+class VideoGenerationRequest(BaseModel):
+    topic: str
+
+def run_video_generation_sync(topic: str) -> str:
+    loop = asyncio.new_event_loop()
+    try:
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(process_educational_video(topic))
+    finally:
+        loop.close()
+
+@app.post("/api/generate-video")
+async def generate_video(payload: VideoGenerationRequest, current_user: User = Depends(get_current_user)):
+    topic = payload.topic.strip()
+    if not topic:
+        raise HTTPException(status_code=400, detail="Topic cannot be empty.")
+    
+    try:
+        video_file_path = await asyncio.wait_for(
+            asyncio.to_thread(run_video_generation_sync, topic),
+            timeout=120.0
+        )
+        filename = os.path.basename(video_file_path)
+        return {"videoUrl": f"http://localhost:8000/static/videos/{filename}"}
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Video generation timed out.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Video generation failed: {str(e)}")
+
 # =========================================================
 # 🔒 MANDATORY SECURITY AUTHENTICATION GATEWAY
 # =========================================================
@@ -591,7 +830,8 @@ class RegisterRequest(BaseModel):
     email: str = None
 
 @app.post("/api/auth/register")
-async def register(credentials: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit(LIMIT_REGISTER)
+async def register(request: Request, credentials: RegisterRequest, db: AsyncSession = Depends(get_db)):
     username_clean = credentials.username.strip().lower()
     if len(username_clean) < 3:
         raise HTTPException(status_code=400, detail="Username must be at least 3 characters long.")
@@ -617,7 +857,8 @@ async def register(credentials: RegisterRequest, db: AsyncSession = Depends(get_
     return {"status": "success", "message": "User registered successfully."}
 
 @app.post("/api/auth/login")
-async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit(LIMIT_LOGIN)
+async def login(request: Request, credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
     sanitized_username = credentials.username.strip().lower()
     sanitized_password = credentials.password.strip()
 
@@ -641,7 +882,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
 
     if is_valid:
         print(f"[AUTH] Authentication Success for user: {credentials.username}")
-        expire_time = datetime.datetime.utcnow() + datetime.timedelta(hours=TOKEN_EXPIRATION_HOURS)
+        expire_time = datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRATION_HOURS)
         token_payload = {
             "sub": credentials.username,
             "exp": expire_time
@@ -657,3 +898,7 @@ async def login(credentials: LoginRequest, db: AsyncSession = Depends(get_db)):
         status_code=401,
         detail="Authentication failed. Invalid username or password."
     )
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

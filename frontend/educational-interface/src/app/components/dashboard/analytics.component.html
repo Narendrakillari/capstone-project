@@ -6,95 +6,106 @@
     </div>
   </div>
 
-  <!-- KPI Grid -->
-  <div class="metrics-kpi-grid">
-    <div *ngFor="let stat of stats" class="kpi-card" [ngClass]="stat.colorClass">
-      <span class="kpi-label">{{ stat.label }}</span>
-      <h2 class="kpi-value">{{ stat.value }}</h2>
-      <span class="kpi-subtext">{{ stat.subtext }}</span>
-    </div>
+  <!-- Loading State -->
+  <div *ngIf="isLoading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; color: #7e8b9b;">
+    <div class="search-spinner" style="width: 32px; height: 32px; border-width: 3px; border-color: #6366f1; border-top-color: transparent; border-style: solid; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
+    <span>Loading study analytics...</span>
   </div>
 
-  <div class="split-row-grid">
-    <!-- Chart: Weekly Activity -->
-    <div class="panel-card activity-chart-box">
-      <h3>Weekly Activity (XP Gained)</h3>
-      <div class="chart-wrapper">
-        <!-- SVG Line Chart -->
-        <svg viewBox="0 0 500 200" class="svg-line-chart">
-          <!-- Grids -->
-          <line x1="40" y1="20" x2="480" y2="20" stroke="#1f293d" stroke-dasharray="4" />
-          <line x1="40" y1="70" x2="480" y2="70" stroke="#1f293d" stroke-dasharray="4" />
-          <line x1="40" y1="120" x2="480" y2="120" stroke="#1f293d" stroke-dasharray="4" />
-          <line x1="40" y1="170" x2="480" y2="170" stroke="#1f293d" />
-
-          <!-- Gradient Area Under Curve -->
-          <defs>
-            <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
-              <stop offset="100%" stop-color="#6366f1" stop-opacity="0.0"/>
-            </linearGradient>
-          </defs>
-          <path d="M 40 170 L 40 120 L 113 90 L 186 140 L 259 50 L 332 80 L 405 30 L 478 100 L 478 170 Z" fill="url(#chartGlow)" />
-
-          <!-- Line Plot Path -->
-          <polyline
-            fill="none"
-            stroke="#6366f1"
-            stroke-width="3"
-            points="40,120 113,90 186,140 259,50 332,80 405,30 478,100"
-          />
-
-          <!-- Data Points Circles -->
-          <circle cx="40" cy="120" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
-          <circle cx="113" cy="90" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
-          <circle cx="186" cy="140" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
-          <circle cx="259" cy="50" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
-          <circle cx="332" cy="80" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
-          <circle cx="405" cy="30" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
-          <circle cx="478" cy="100" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
-
-          <!-- Day Labels -->
-          <text x="40" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Mon</text>
-          <text x="113" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Tue</text>
-          <text x="186" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Wed</text>
-          <text x="259" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Thu</text>
-          <text x="332" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Fri</text>
-          <text x="405" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Sat</text>
-          <text x="478" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Sun</text>
-        </svg>
+  <ng-container *ngIf="!isLoading">
+    <!-- KPI Grid -->
+    <div class="metrics-kpi-grid">
+      <div *ngFor="let stat of stats" class="kpi-card" [ngClass]="stat.colorClass">
+        <span class="kpi-label">{{ stat.label }}</span>
+        <h2 class="kpi-value">{{ stat.value }}</h2>
+        <span class="kpi-subtext">{{ stat.subtext }}</span>
       </div>
     </div>
 
-    <!-- Subjects breakdown -->
-    <div class="panel-card subject-breakdown-box">
-      <h3>Subject Breakdowns</h3>
-      <div class="subject-progress-list">
-        <div *ngFor="let sub of subjectDistributions" class="subject-progress-row">
-          <div class="sub-labels">
-            <span class="sub-name">{{ sub.subject }}</span>
-            <span class="sub-xp-val">{{ sub.xp }} XP</span>
+    <div class="split-row-grid">
+      <!-- Chart: Weekly Activity -->
+      <div class="panel-card activity-chart-box">
+        <h3>Weekly Activity (XP Gained)</h3>
+        <div class="chart-wrapper">
+          <!-- SVG Line Chart -->
+          <svg viewBox="0 0 500 200" class="svg-line-chart">
+            <!-- Grids -->
+            <line x1="40" y1="20" x2="480" y2="20" stroke="#1f293d" stroke-dasharray="4" />
+            <line x1="40" y1="70" x2="480" y2="70" stroke="#1f293d" stroke-dasharray="4" />
+            <line x1="40" y1="120" x2="480" y2="120" stroke="#1f293d" stroke-dasharray="4" />
+            <line x1="40" y1="170" x2="480" y2="170" stroke="#1f293d" />
+
+            <!-- Gradient Area Under Curve -->
+            <defs>
+              <linearGradient id="chartGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#6366f1" stop-opacity="0.0"/>
+              </linearGradient>
+            </defs>
+            <path d="M 40 170 L 40 120 L 113 90 L 186 140 L 259 50 L 332 80 L 405 30 L 478 100 L 478 170 Z" fill="url(#chartGlow)" />
+
+            <!-- Line Plot Path -->
+            <polyline
+              fill="none"
+              stroke="#6366f1"
+              stroke-width="3"
+              points="40,120 113,90 186,140 259,50 332,80 405,30 478,100"
+            />
+
+            <!-- Data Points Circles -->
+            <circle cx="40" cy="120" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
+            <circle cx="113" cy="90" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
+            <circle cx="186" cy="140" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
+            <circle cx="259" cy="50" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
+            <circle cx="332" cy="80" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
+            <circle cx="405" cy="30" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
+            <circle cx="478" cy="100" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="1.5" />
+
+            <!-- Day Labels -->
+            <text x="40" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Mon</text>
+            <text x="113" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Tue</text>
+            <text x="186" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Wed</text>
+            <text x="259" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Thu</text>
+            <text x="332" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Fri</text>
+            <text x="405" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Sat</text>
+            <text x="478" y="190" fill="#7e8b9b" font-size="10" text-anchor="middle">Sun</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Subjects breakdown -->
+      <div class="panel-card subject-breakdown-box">
+        <h3>Subject Breakdowns</h3>
+        <div class="subject-progress-list">
+          <div *ngIf="subjectDistributions.length === 0" style="padding: 2rem; text-align: center; color: #7e8b9b;">
+            No quizzes completed yet.
           </div>
-          <div class="progress-bar-bg">
-            <div class="progress-fill" [style.background]="sub.color" [style.width.%]="sub.percentage"></div>
+          <div *ngFor="let sub of subjectDistributions" class="subject-progress-row">
+            <div class="sub-labels">
+              <span class="sub-name">{{ sub.subject }}</span>
+              <span class="sub-xp-val">{{ sub.xp }} XP</span>
+            </div>
+            <div class="progress-bar-bg">
+              <div class="progress-fill" [style.background]="sub.color" [style.width.%]="sub.percentage"></div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Achievements Stack -->
-  <div class="achievements-section">
-    <h3>Unlocked Achievements</h3>
-    <div class="achievements-grid">
-      <div *ngFor="let ach of achievements" class="achievement-card">
-        <div class="achievement-icon">{{ ach.icon }}</div>
-        <div class="achievement-info">
-          <h4>{{ ach.title }}</h4>
-          <p>{{ ach.description }}</p>
-          <span class="achievement-unlocked">{{ ach.unlockedAt }}</span>
+    <!-- Achievements Stack -->
+    <div class="achievements-section" style="margin-bottom: 2rem;">
+      <h3>Unlocked Achievements</h3>
+      <div class="achievements-grid">
+        <div *ngFor="let ach of achievements" class="achievement-card">
+          <div class="achievement-icon">{{ ach.icon }}</div>
+          <div class="achievement-info">
+            <h4>{{ ach.title }}</h4>
+            <p>{{ ach.description }}</p>
+            <span class="achievement-unlocked">{{ ach.unlockedAt }}</span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </ng-container>
 </div>

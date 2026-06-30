@@ -2,6 +2,7 @@ import { Component, ChangeDetectorRef, OnInit, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { QuizQuestion } from '../../models/workspace.models';
 
 @Component({
   selector: 'app-quiz',
@@ -14,7 +15,7 @@ export class QuizComponent implements OnInit {
   @Input() username: string = '';
 
   // Navigation State Switch
-  currentView: 'dashboard' | 'arena' = 'dashboard';
+  currentView: 'dashboard' | 'arena' | 'results' = 'dashboard';
   quizSearchQuery: string = '';
   isGenerating: boolean = false;
 
@@ -24,9 +25,14 @@ export class QuizComponent implements OnInit {
   averageScore: number = 0;
   totalXP: number = 0;
 
+  // Results Screen State variables
+  finalScore: number = 0;
+  finalCorrect: number = 0;
+  totalQuestions: number = 0;
+
   // Question Engine States
   generatedTopicTitle: string = '';
-  questionsDeck: any[] = [];
+  questionsDeck: QuizQuestion[] = [];
   currentQuestionIndex: number = 0;
   selectedAnswerIndex: number | null = null;
   accumulatedScore: number = 0;
@@ -108,13 +114,17 @@ export class QuizComponent implements OnInit {
   }
 
   advanceToNextQuestion() {
-    if (this.currentQuestionIndex < 9) {
+    if (this.currentQuestionIndex < this.questionsDeck.length - 1) {
       this.currentQuestionIndex++;
       this.selectedAnswerIndex = null;
     } else {
       const user = this.username || localStorage.getItem('sessionUser') || 'narendra';
       const score = this.accumulatedScore * 10;
       
+      this.finalScore = score;
+      this.finalCorrect = this.accumulatedScore;
+      this.totalQuestions = this.questionsDeck.length;
+
       this.apiService.saveQuizScore(user, this.generatedTopicTitle, score, this.accumulatedScore).subscribe({
         next: () => {
           console.log('Quiz score persisted successfully');
@@ -126,9 +136,16 @@ export class QuizComponent implements OnInit {
       });
 
       this.quizzesTakenCount++;
-      alert(`🎯 Quiz Finished! Evaluation complete: ${score}/100 Points.`);
-      this.exitQuizArena();
+      this.currentView = 'results';
     }
+    this.cdr.detectChanges();
+  }
+
+  retryQuiz() {
+    this.currentView = 'arena';
+    this.currentQuestionIndex = 0;
+    this.selectedAnswerIndex = null;
+    this.accumulatedScore = 0;
     this.cdr.detectChanges();
   }
 

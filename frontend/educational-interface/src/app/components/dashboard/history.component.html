@@ -20,7 +20,13 @@
     </button>
   </div>
 
-  <div class="timeline-container">
+  <!-- Loading State -->
+  <div *ngIf="isLoading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem; color: #7e8b9b;">
+    <div class="search-spinner" style="width: 32px; height: 32px; border-width: 3px; border-color: #6366f1; border-top-color: transparent; border-style: solid; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 1rem;"></div>
+    <span>Loading study timeline...</span>
+  </div>
+
+  <div *ngIf="!isLoading" class="timeline-container">
     <div *ngFor="let item of getFilteredHistory(); let last = last" class="timeline-item">
       <!-- Left: Timeline Line and bubble icon -->
       <div class="timeline-badge-column">

@@ -1,6 +1,7 @@
 import { Component, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { ApiService } from '../../services/api.service';
 
 @Component({
@@ -33,7 +34,7 @@ export class LoginComponent {
   // Session token event emmiter out to main app layer shell
   @Output() loginSuccess = new EventEmitter<string>();
 
-  constructor(private apiService: ApiService, private cdr: ChangeDetectorRef) {}
+  constructor(private apiService: ApiService, private router: Router, private cdr: ChangeDetectorRef) {}
 
   toggleTab(mode: 'login' | 'signup') {
     this.isSignUpActive = mode === 'signup';
@@ -61,6 +62,7 @@ export class LoginComponent {
         
         // Dispatch completion notification out to framework shell wrapper
         this.loginSuccess.emit(response.username);
+        this.router.navigate(['/dashboard']);
       },
       error: (err) => {
         console.error('❌ Security block interceptor triggered:', err);

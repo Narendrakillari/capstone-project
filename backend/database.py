@@ -1,10 +1,12 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, Integer, DateTime, Text
 
-DATABASE_URL = "sqlite+aiosqlite:///./visuallearn.db"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+db_path = os.path.join(BASE_DIR, "visuallearn.db").replace("\\", "/")
+DATABASE_URL = f"sqlite+aiosqlite:///{db_path}"
 
 # Create async engine pointing to SQLite visuallearn.db
 engine = create_async_engine(DATABASE_URL, echo=True)
@@ -29,7 +31,7 @@ class QuizResult(Base):
     topic: Mapped[str] = mapped_column(String, nullable=False)
     score: Mapped[int] = mapped_column(Integer, nullable=False)
     correct_count: Mapped[int] = mapped_column(Integer, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 # WorkspaceCache model schema
 class WorkspaceCache(Base):
@@ -52,7 +54,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)
     email: Mapped[str] = mapped_column(String, nullable=True)
     hashed_password: Mapped[str] = mapped_column(String, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 # Async database session generator dependency
 async def get_db():

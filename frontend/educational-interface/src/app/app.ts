@@ -1,17 +1,12 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { DashboardComponent } from './components/dashboard/dashboard.component';
-import { LoginComponent } from './components/dashboard/login.component';
-import { ApiService } from './services/api.service';
+import { Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, DashboardComponent, LoginComponent],
+  imports: [RouterOutlet],
   template: `
-    <app-login *ngIf="!isUserAuthenticated" (loginSuccess)="unlockSessionAccess($event)"></app-login>
-    
-    <app-dashboard *ngIf="isUserAuthenticated" [username]="sessionUsername" (logout)="lockSessionAccess()"></app-dashboard>
+    <router-outlet></router-outlet>
   `,
   styles: [`
     :host {
@@ -25,35 +20,7 @@ import { ApiService } from './services/api.service';
     }
   `]
 })
-export class AppComponent implements OnInit {
-  isUserAuthenticated: boolean = false;
-  sessionUsername: string = '';
-
-  constructor(private apiService: ApiService) {}
-
-  ngOnInit() {
-    // 🌟 LIFE-CYCLE SEED: Scan browser environment memory for structural access tokens
-    const cachedToken = localStorage.getItem('authToken');
-    const cachedUser = localStorage.getItem('sessionUser');
-
-    if (cachedToken && cachedUser) {
-      console.log('🛰️ Active token verified in local memory matrix. Auto-bypassing login card...');
-      this.sessionUsername = cachedUser;
-      this.isUserAuthenticated = true;
-    }
-  }
-
-  unlockSessionAccess(username: string) {
-    this.sessionUsername = username;
-    this.isUserAuthenticated = true;
-  }
-
-  lockSessionAccess() {
-    console.log('🔒 Locking session access. Removing tokens from memory matrix...');
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('sessionUser');
-    this.sessionUsername = '';
-    this.isUserAuthenticated = false;
-  }
+export class AppComponent {
+  constructor() {}
 }
 

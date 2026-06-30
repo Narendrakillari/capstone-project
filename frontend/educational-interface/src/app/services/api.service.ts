@@ -48,6 +48,18 @@ export class ApiService {
     });
   }
 
+  getHistory(username: string): Observable<any> {
+    return this.getUserStats(username);
+  }
+
+  getDetailedStats(): Observable<any> {
+    return this.http.get(`${this.baseUrl}/user-stats/detailed`);
+  }
+
+  generateVideo(topic: string): Observable<any> {
+    return this.http.post(`${this.baseUrl}/generate-video`, { topic });
+  }
+
   // 🌟 SECURE SERVICE HANDLER MATRIX
   login(username: string, password: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/auth/login`, { username, password });

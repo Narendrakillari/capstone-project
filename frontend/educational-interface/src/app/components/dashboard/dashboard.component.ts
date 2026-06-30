@@ -3,6 +3,8 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../services/api.service';
+import { BookmarkService } from '../../services/bookmark.service';
+import { WorkspaceResponse, RecommendedLesson, QuizQuestion } from '../../models/workspace.models';
 import { QuizComponent } from './quiz.component';
 import { LibraryComponent } from './library.component';
 import { NotesComponent } from './notes.component';
@@ -19,18 +21,6 @@ export interface LessonContent {
   quizQuestion: string;
   quizOptions: string[];
   correctAnswerIndex: number;
-}
-
-export interface RecommendedLesson {
-  topic: string;
-  subject: string;
-  grade: string;
-  duration: string;
-  videoUrl?: string;
-  keyPoints?: string[];
-  quizQuestion?: string;
-  quizOptions?: string[];
-  correctAnswerIndex?: number;
 }
 
 @Component({
@@ -89,10 +79,50 @@ export class DashboardComponent implements OnInit, OnDestroy {
   rawVideoUrl: string = '';
   private timerInterval: any = null;
 
-  constructor(private apiService: ApiService, private cdr: ChangeDetectorRef, private sanitizer: DomSanitizer) {}
+  isVideoGenerating: boolean = false;
+
+  constructor(
+    private apiService: ApiService,
+    private bookmarkService: BookmarkService,
+    private cdr: ChangeDetectorRef,
+    private sanitizer: DomSanitizer
+  ) {}
 
   ngOnInit(): void {
     this.initYouTubeAPI();
+  }
+
+  addBookmark(type: 'video' | 'keypoint' | 'mindmap' | 'question', title: string, snippet: string): void {
+    this.bookmarkService.addBookmark({
+      type,
+      title,
+      topic: this.topicTitle || 'General',
+      category: this.metaBadges[0] || 'General',
+      contentSnippet: snippet
+    });
+    this.showToast('Added to bookmarks!');
+  }
+
+  onGenerateVideo(): void {
+    if (!this.topicTitle) return;
+    this.isVideoGenerating = true;
+    this.cdr.detectChanges();
+    this.apiService.generateVideo(this.topicTitle).subscribe({
+      next: (res) => {
+        this.isVideoGenerating = false;
+        this.rawVideoUrl = res.videoUrl;
+        this.videoUrl = this.sanitizer.bypassSecurityTrustResourceUrl(res.videoUrl);
+        this.cdr.detectChanges();
+        this.initPlayer(res.videoUrl);
+        this.showToast('Educational lecture video generated successfully!');
+      },
+      error: (err) => {
+        console.error('Failed to generate video:', err);
+        this.showToast('Video generation failed or timed out.');
+        this.isVideoGenerating = false;
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   ngOnDestroy(): void {

@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+import { Component, EventEmitter, Output, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ApiService } from '../../services/api.service';
 
 export interface HistoryItem {
   id: number;
@@ -19,67 +20,47 @@ export interface HistoryItem {
   templateUrl: './history.component.html',
   styleUrls: ['./history.component.css']
 })
-export class HistoryComponent {
+export class HistoryComponent implements OnInit {
+  @Input() username: string = '';
   @Output() topicSelected = new EventEmitter<string>();
 
   selectedType: string = 'All';
+  isLoading: boolean = false;
+  historyItems: HistoryItem[] = [];
 
-  historyItems: HistoryItem[] = [
-    {
-      id: 1,
-      type: 'workspace',
-      title: 'Photosynthesis',
-      category: 'Biology',
-      timestamp: 'Today, 2:15 PM',
-      description: 'Generated AI lecture video, mind maps, and detailed key takeaways.',
-      extraMeta: 'Grade 10 Study Profile'
-    },
-    {
-      id: 2,
-      type: 'quiz',
-      title: 'Photosynthesis Arena',
-      category: 'Biology',
-      timestamp: 'Today, 2:30 PM',
-      description: 'Completed 10 multiple-choice questions in the practice arena.',
-      extraMeta: 'Score: 90/100 (+50 XP)'
-    },
-    {
-      id: 3,
-      type: 'note',
-      title: 'Cellular Respiration Notes',
-      category: 'Biology',
-      timestamp: 'Yesterday, 4:10 PM',
-      description: 'Updated and compiled personal notes on Glycolysis and Krebs cycle.',
-      extraMeta: 'Saved in Study Notes'
-    },
-    {
-      id: 4,
-      type: 'workspace',
-      title: 'Cellular Respiration',
-      category: 'Biology',
-      timestamp: 'Yesterday, 3:45 PM',
-      description: 'Generated respiratory pathways study workspace and loops.',
-      extraMeta: 'Grade 10 Study Profile'
-    },
-    {
-      id: 5,
-      type: 'workspace',
-      title: 'Quantum Entanglement',
-      category: 'Physics',
-      timestamp: '3 days ago',
-      description: 'Researched quantum superposition, teleportation, and qubit states.',
-      extraMeta: 'Grade 12 Study Profile'
-    },
-    {
-      id: 6,
-      type: 'quiz',
-      title: 'Quantum Physics Arena',
-      category: 'Physics',
-      timestamp: '3 days ago',
-      description: 'Completed evaluation quiz. Reviewed 3 incorrect responses.',
-      extraMeta: 'Score: 70/100 (+30 XP)'
-    }
-  ];
+  constructor(private apiService: ApiService) {}
+
+  ngOnInit(): void {
+    this.loadHistory();
+  }
+
+  loadHistory() {
+    const user = this.username || localStorage.getItem('sessionUser') || 'narendra';
+    this.isLoading = true;
+    this.apiService.getHistory(user).subscribe({
+      next: (res) => {
+        this.isLoading = false;
+        if (res.recent_quizzes && res.recent_quizzes.length > 0) {
+          this.historyItems = res.recent_quizzes.map((q: any, index: number) => ({
+            id: index + 1,
+            type: 'quiz',
+            title: q.title,
+            category: 'General',
+            timestamp: q.date,
+            description: `Completed multiple-choice practice quiz in the evaluation arena.`,
+            extraMeta: `Score: ${q.score}/100`
+          }));
+        } else {
+          this.historyItems = [];
+        }
+      },
+      error: (err) => {
+        console.error('Failed to load history:', err);
+        this.isLoading = false;
+        this.historyItems = [];
+      }
+    });
+  }
 
   getFilteredHistory(): HistoryItem[] {
     if (this.selectedType === 'All') {
@@ -102,7 +83,6 @@ export class HistoryComponent {
   }
 
   launchTopic(topic: string) {
-    // Strips out "Arena" or "Notes" suffix from titles if they are quizzes/notes
     const cleanTopic = topic.replace(' Arena', '').replace(' Notes', '');
     this.topicSelected.emit(cleanTopic);
   }

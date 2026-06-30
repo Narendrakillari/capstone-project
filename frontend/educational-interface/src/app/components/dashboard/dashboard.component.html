@@ -84,57 +84,43 @@
     <div class="content-scroll-body">
       <!-- 1. GENERATING STATE (Pulsing Animated Skeleton UI) -->
       <ng-container *ngIf="isGenerating">
-        <!-- Header Module Skeleton -->
-        <div class="lesson-header-module fade-in">
-          <div class="title-section" style="width: 100%;">
-            <div class="skeleton-loader skeleton-title" style="margin-bottom: 0.75rem;"></div>
-            <div class="badges-row">
-              <div class="skeleton-loader skeleton-badge"></div>
-              <div class="skeleton-loader skeleton-badge"></div>
-              <div class="skeleton-loader skeleton-badge"></div>
-            </div>
-          </div>
-        </div>
+        <!-- Skeleton Video Player area -->
+        <div class="skeleton-shimmer skeleton-video-player"></div>
 
-        <!-- Video Player Card Skeleton -->
-        <div class="player-card fade-in">
-          <div class="video-container-overlay">
-            <div class="skeleton-loader skeleton-video"></div>
-          </div>
-          <div class="related-topics-section">
-            <div class="skeleton-loader skeleton-text-field" style="width: 100px;"></div>
-            <div class="chips-row">
-              <div class="skeleton-loader skeleton-badge" style="width: 70px;"></div>
-              <div class="skeleton-loader skeleton-badge" style="width: 70px;"></div>
-              <div class="skeleton-loader skeleton-badge" style="width: 90px;"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Bottom Split Panel Skeleton -->
-        <div class="bottom-split-grid fade-in">
+        <!-- Bottom grid containing Key Points list & Quiz question -->
+        <div class="bottom-split-grid">
+          <!-- Left Sidebar Key Points Skeleton: 5 rows of varying width -->
           <div class="split-pane chat-pane">
-            <div class="skeleton-loader skeleton-text-field" style="width: 120px; margin-bottom: 1rem;"></div>
-            <div class="chat-viewport">
-              <div class="skeleton-loader skeleton-text-field" style="width: 50%; margin-bottom: 0.5rem;"></div>
-              <div class="skeleton-loader skeleton-text-field" style="width: 70%; margin-bottom: 0.5rem;"></div>
-              <div class="skeleton-loader skeleton-text-field"
-                style="width: 40%; align-self: flex-end; margin-bottom: 0.5rem;"></div>
-            </div>
-            <div class="chat-input-bar">
-              <div class="skeleton-loader skeleton-button"></div>
+            <h3 class="pane-title">Key Points</h3>
+            <div class="skeleton-keypoints-container">
+              <div class="skeleton-shimmer skeleton-keypoint-row" style="width: 90%;"></div>
+              <div class="skeleton-shimmer skeleton-keypoint-row" style="width: 75%;"></div>
+              <div class="skeleton-shimmer skeleton-keypoint-row" style="width: 85%;"></div>
+              <div class="skeleton-shimmer skeleton-keypoint-row" style="width: 60%;"></div>
+              <div class="skeleton-shimmer skeleton-keypoint-row" style="width: 80%;"></div>
             </div>
           </div>
+
+          <!-- Right Quiz question Skeleton: one wide bar + 4 option bars -->
           <div class="split-pane quiz-pane">
-            <div class="skeleton-loader skeleton-text-field" style="width: 120px; margin-bottom: 1rem;"></div>
-            <div class="quiz-container">
-              <div class="skeleton-loader skeleton-text-field" style="width: 90%; margin-bottom: 1rem;"></div>
-              <div class="quiz-options-list">
-                <div class="skeleton-loader skeleton-button" style="margin-bottom: 0.5rem;"></div>
-                <div class="skeleton-loader skeleton-button" style="margin-bottom: 0.5rem;"></div>
-                <div class="skeleton-loader skeleton-button" style="margin-bottom: 0.5rem;"></div>
-              </div>
+            <h3 class="pane-title">Quick Quiz</h3>
+            <div class="skeleton-quiz-container">
+              <div class="skeleton-shimmer skeleton-quiz-title"></div>
+              <div class="skeleton-shimmer skeleton-quiz-option"></div>
+              <div class="skeleton-shimmer skeleton-quiz-option"></div>
+              <div class="skeleton-shimmer skeleton-quiz-option"></div>
+              <div class="skeleton-shimmer skeleton-quiz-option"></div>
             </div>
+          </div>
+        </div>
+
+        <!-- Recommended Lessons: 3 cards side by side -->
+        <div style="margin-top: 2rem; margin-bottom: 2rem;">
+          <h3 class="pane-title" style="margin-bottom: 1rem;">Recommended Lessons</h3>
+          <div class="skeleton-lessons-grid">
+            <div class="skeleton-shimmer skeleton-lesson-card"></div>
+            <div class="skeleton-shimmer skeleton-lesson-card"></div>
+            <div class="skeleton-shimmer skeleton-lesson-card"></div>
           </div>
         </div>
       </ng-container>
@@ -205,14 +191,27 @@
       <!-- 3. ACTIVE CONTENT STATE (Rich Rendered Content Layout) -->
       <ng-container *ngIf="hasData && !isGenerating">
         <!-- Header Module -->
-        <div class="lesson-header-module">
+        <div class="lesson-header-module" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
           <div class="title-section">
-            <h2 class="topic-title">Topic Name: {{ topicTitle }}</h2>
+            <h2 class="topic-title" style="margin: 0 0 0.5rem 0;">Topic Name: {{ topicTitle }}</h2>
             <div class="badges-row">
               <span *ngFor="let badge of metaBadges" class="meta-badge" [ngClass]="getBadgeClass(badge)">
                 {{ badge }}
               </span>
             </div>
+          </div>
+          <div class="header-actions" style="display: flex; gap: 0.5rem; align-items: center;">
+            <button class="generate-btn" (click)="onGenerateVideo()" [disabled]="isVideoGenerating" style="padding: 0.5rem 1rem; font-size: 0.85rem; height: 36px; display: flex; align-items: center; border-radius: 8px;">
+              <span *ngIf="!isVideoGenerating">📹 Generate Lecture Video</span>
+              <span *ngIf="isVideoGenerating" class="search-spinner" style="width: 14px; height: 14px; border-width: 2px;"></span>
+              <span *ngIf="isVideoGenerating" style="margin-left: 6px;">Generating...</span>
+            </button>
+            <button class="chip-pill" (click)="addBookmark('video', topicTitle, videoSummary)" title="Bookmark Lesson" style="padding: 0 0.75rem; height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(99, 102, 241, 0.15); border: 1px solid #6366f1; border-radius: 8px; color: #ffffff; cursor: pointer; font-size: 0.85rem;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; margin-right: 6px;">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Bookmark
+            </button>
           </div>
         </div>
 
@@ -445,6 +444,11 @@
                     stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                </button>
+                <button (click)="addBookmark('keypoint', point, point)" class="copy-btn" title="Bookmark Key Point" style="margin-left: 8px;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
                   </svg>
                 </button>
               </div>

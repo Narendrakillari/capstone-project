@@ -1528,4 +1528,74 @@ app-quiz, app-library, app-notes, app-history, app-bookmarks, app-analytics {
   transform: translateX(2px);
 }
 
+/* Skeleton Loading & Shimmer Effects */
+@keyframes shimmerAnimation {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--surface-1, #131926) 25%, #1e293b 50%, var(--surface-1, #131926) 75%);
+  background-size: 200% 100%;
+  animation: shimmerAnimation 1.5s infinite linear;
+  border-radius: 8px;
+}
+
+/* Specific Skeleton components */
+.skeleton-video-player {
+  width: 100%;
+  height: 380px;
+  margin-bottom: 1.5rem;
+}
+
+.skeleton-keypoints-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem 0;
+}
+
+.skeleton-keypoint-row {
+  height: 18px;
+  border-radius: 4px;
+}
+
+.skeleton-lessons-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.skeleton-lesson-card {
+  height: 120px;
+}
+
+.skeleton-quiz-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background-color: var(--surface-1, #131926);
+  border: 1px solid #1f293d;
+  border-radius: 12px;
+}
+
+.skeleton-quiz-title {
+  height: 24px;
+  width: 80%;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}
+
+.skeleton-quiz-option {
+  height: 48px;
+  border-radius: 8px;
+}
+
 

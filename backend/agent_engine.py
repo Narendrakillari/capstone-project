@@ -24,6 +24,7 @@ import edge_tts
 
 # Load environment variables from .env file
 load_dotenv()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_VIDEOS_DIR = os.path.join(BASE_DIR, "static", "videos")
@@ -121,7 +122,7 @@ def build_video_scene(slide_visuals: list[str], duration: float, scene_num: int)
 
 async def process_educational_video(topic: str) -> str:
     """Orchestrates the entire agentic synthesis pipeline from prompt to finished file."""
-    config = LocalAgentConfig(system_instructions=SYSTEM_INSTRUCTIONS)
+    config = LocalAgentConfig(system_instructions=SYSTEM_INSTRUCTIONS, api_key=GEMINI_API_KEY)
     
     async with Agent(config) as orchestrator:
         prompt = f"Break down the topic '{topic}' into exactly 2 sequential, high-impact instructional scenes."
